@@ -30,10 +30,10 @@ cmake_minimum_required(VERSION 3.16)
 
 include(cmake/Version.cmake)
 
-project(openboard
+project(contrarywhiteboard
     VERSION ${VERSION_NUMBER}
-    DESCRIPTION "OpenBoard is an open source cross-platform interactive white board application designed primarily for use in schools. It was originally forked from Open-Sankoré, which was itself based on Uniboard."
-    HOMEPAGE_URL "https://www.openboard.org"
+    DESCRIPTION "Contrary Whiteboard is a cross-platform interactive whiteboard application for education and presentations. Fork of OpenBoard by AroseEditor."
+    HOMEPAGE_URL "https://github.com/AroseEditor/Contrary-Whiteboard"
     LANGUAGES CXX
 )
 
@@ -70,7 +70,7 @@ set(OPENBOARD_TEMPLATE_FILE ${OPENBOARD_ETC_DIR}/asyncAPI.js
                             ${OPENBOARD_ETC_DIR}/intranet-podcast-metadata.template
                             ${OPENBOARD_ETC_DIR}/npapi-wrapper.config.xml)
 
-set(OPENBOARD_ICON_FILE     resources/images/ch.openboard.OpenBoard.svg)
+set(OPENBOARD_ICON_FILE     resources/images/ContraryWhiteboard.png)
 set(OPENBOARD_DESKTOP_FILE  resources/linux/ch.openboard.OpenBoard.desktop)
 set(OPENBOARD_MIMETYPE_FILE resources/linux/ch.openboard.openboard-ubz.xml)
 set(OPENBOARD_MIMEICON_FILE resources/linux/ch.openboard.application-ubz.svg)
@@ -233,7 +233,7 @@ install(FILES     ${OPENBOARD_MIMEICON_FILE}    DESTINATION ${CMAKE_INSTALL_DATA
 include(InstallRequiredSystemLibraries)
 set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
 set(CPACK_PACKAGE_VERSION "${VERSION}")
-set(CPACK_PACKAGE_CONTACT "The OpenBoard team")
+set(CPACK_PACKAGE_CONTACT "AroseEditor <https://github.com/AroseEditor>")
 set(CPACK_STRIP_FILES TRUE)
 
 # Debian specific settings

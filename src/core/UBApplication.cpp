@@ -103,9 +103,9 @@ UBApplication::UBApplication(const QString &id, int &argc, char **argv) : Single
     Q_UNUSED(id)
     staticMemoryCleaner = new QObject(0); // deleted in UBApplication destructor
 
-    setOrganizationName("Open Education Foundation");
-    setOrganizationDomain("oe-f.org");
-    setApplicationName("OpenBoard");
+    setOrganizationName("AroseEditor");
+    setOrganizationDomain("github.com/AroseEditor");
+    setApplicationName("Contrary Whiteboard");
 
 #ifdef Q_OS_OSX
     // With Qt 6.9 on macOS 15 (at least), icons aren't shown in menus. This forces their display.
@@ -143,7 +143,7 @@ UBApplication::UBApplication(const QString &id, int &argc, char **argv) : Single
     updateProtoActionsState();
 
 #ifndef Q_OS_OSX
-    setWindowIcon(QIcon(":/images/OpenBoard.png"));
+    setWindowIcon(QIcon(":/images/ContraryWhiteboard.png"));
 #endif
 
     setStyle("fusion");
