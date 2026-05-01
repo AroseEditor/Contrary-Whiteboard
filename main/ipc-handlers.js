@@ -142,6 +142,28 @@ function registerIpcHandlers() {
     return true;
   });
 
+  // Generic file open dialog (used by PDF import etc.)
+  ipcMain.handle('dialog:open-file-raw', async (event, opts) => {
+    const result = await dialog.showOpenDialog({
+      title: opts?.title || 'Open File',
+      filters: opts?.filters || [{ name: 'All Files', extensions: ['*'] }],
+      properties: ['openFile']
+    });
+    if (result.canceled || result.filePaths.length === 0) return null;
+    return result.filePaths[0];
+  });
+
+  // Read file as binary (returns Uint8Array for pdfjs)
+  ipcMain.handle('file:read-binary', async (event, filePath) => {
+    try {
+      const data = fs.readFileSync(filePath);
+      return data; // Node Buffer, serialized as Uint8Array over IPC
+    } catch (e) {
+      console.error('Failed to read binary file:', e);
+      return null;
+    }
+  });
+
   // ---- DISPLAY ----
   ipcMain.handle('display:get-displays', async () => {
     return getDisplays();

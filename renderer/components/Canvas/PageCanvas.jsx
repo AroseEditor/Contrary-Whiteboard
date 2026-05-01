@@ -14,9 +14,15 @@ import { ShapeTool } from '../../tools/ShapeTool';
 import { TextTool } from '../../tools/TextTool';
 import { SelectorTool } from '../../tools/SelectorTool';
 import { LaserTool } from '../../tools/LaserTool';
+import { CompassTool } from '../../tools/CompassTool';
+import { GeometryOverlays } from './GeometryOverlays';
 
 const coordSystem = new CoordinateSystem();
 const renderer = new CanvasRenderer();
+const geometryOverlays = new GeometryOverlays();
+
+// Expose globally so toolbar can toggle overlays
+window.__geometryOverlays = geometryOverlays;
 
 const tools = {
   pen: new PenTool(),
@@ -29,7 +35,8 @@ const tools = {
   shape: new ShapeTool(),
   text: new TextTool(),
   select: new SelectorTool(),
-  laser: new LaserTool()
+  laser: new LaserTool(),
+  compass: new CompassTool()
 };
 
 export default function PageCanvas() {
@@ -45,6 +52,7 @@ export default function PageCanvas() {
   const zoom = useUIStore(s => s.zoom);
   const panOffset = useUIStore(s => s.panOffset);
   const showGrid = useUIStore(s => s.showGrid);
+  const boardBackground = useUIStore(s => s.boardBackground);
   const stylusConfig = useSettingsStore(s => s.stylus);
 
   const currentPage = pages.find(p => p.id === currentPageId) || pages[0];
@@ -83,7 +91,8 @@ export default function PageCanvas() {
     renderer.renderPage(ctx, currentPage, coordSystem, {
       showGrid,
       selectedObjectIds,
-      selectionRect: tool.selectionRect || null
+      selectionRect: tool.selectionRect || null,
+      boardBackground
     });
 
     if (activeTool === 'laser' && tool.points) {
@@ -100,7 +109,10 @@ export default function PageCanvas() {
       renderer.renderObject(ctx, tool.previewObject);
       coordSystem.resetTransform(ctx);
     }
-  }, [currentPage, zoom, panOffset, showGrid, selectedObjectIds, activeTool, getActiveTool]);
+
+    // Render geometry overlays (ruler, protractor, set square) on top
+    geometryOverlays.render(ctx, coordSystem);
+  }, [currentPage, zoom, panOffset, showGrid, selectedObjectIds, activeTool, getActiveTool, boardBackground]);
 
   // Animation loop
   useEffect(() => {

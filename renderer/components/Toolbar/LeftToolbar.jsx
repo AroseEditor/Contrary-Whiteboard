@@ -3,6 +3,7 @@ import useToolStore from '../../store/toolStore';
 import useDocumentStore from '../../store/documentStore';
 import useUIStore from '../../store/uiStore';
 import ToolButton from './ToolButton';
+import BackgroundPicker from './BackgroundPicker';
 
 // SVG icon paths (clean, outlined, monochrome style)
 const ICONS = {
@@ -15,6 +16,10 @@ const ICONS = {
   ellipse: '<ellipse cx="12" cy="12" rx="9" ry="7"/>',
   text: '<path d="M6 4h12"/><path d="M12 4v16"/><path d="M8 20h8"/>',
   laser: '<circle cx="12" cy="12" r="3"/><path d="M12 2v4"/><path d="M12 18v4"/><path d="M2 12h4"/><path d="M18 12h4"/><path d="M4.93 4.93l2.83 2.83"/><path d="M16.24 16.24l2.83 2.83"/><path d="M4.93 19.07l2.83-2.83"/><path d="M16.24 7.76l2.83-2.83"/>',
+  compass: '<circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="1.5"/><path d="M12 5v-2"/><path d="M12 12l5 5"/>',
+  ruler: '<path d="M3 5h18v4H3z"/><path d="M6 5v2"/><path d="M9 5v3"/><path d="M12 5v2"/><path d="M15 5v3"/><path d="M18 5v2"/><path d="M3 13h18v4H3z"/><path d="M6 13v2"/><path d="M9 13v3"/><path d="M12 13v2"/><path d="M15 13v3"/><path d="M18 13v2"/>',
+  protractor: '<path d="M3 18a9 9 0 0118 0"/><circle cx="12" cy="18" r="1"/><path d="M12 9v2"/><path d="M6.34 11.34l1.41 1.41"/><path d="M17.66 11.34l-1.41 1.41"/>',
+  setSquare: '<path d="M3 21h18L3 3z"/><path d="M3 17h4v4"/>',
   undo: '<path d="M3 10h13a4 4 0 010 8H9"/><path d="M3 10l4-4"/><path d="M3 10l4 4"/>',
   redo: '<path d="M21 10H8a4 4 0 000 8h7"/><path d="M21 10l-4-4"/><path d="M21 10l-4 4"/>',
   clear: '<path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M5 6v14a1 1 0 001 1h12a1 1 0 001-1V6"/><path d="M10 10v6"/><path d="M14 10v6"/>',
@@ -32,6 +37,14 @@ export default function LeftToolbar() {
   const zoomIn = useUIStore(s => s.zoomIn);
   const zoomOut = useUIStore(s => s.zoomOut);
   const zoomFit = useUIStore(s => s.zoomFit);
+
+  const toggleOverlay = (name) => {
+    const overlays = window.__geometryOverlays;
+    if (!overlays) return;
+    if (name === 'ruler') overlays.toggleRuler();
+    else if (name === 'protractor') overlays.toggleProtractor();
+    else if (name === 'setSquare') overlays.toggleSetSquare();
+  };
 
   const handleClear = async () => {
     if (typeof window !== 'undefined' && window.require) {
@@ -54,10 +67,17 @@ export default function LeftToolbar() {
       <ToolButton icon={ICONS.highlighter} label="Highlighter" shortcut="H" active={activeTool === 'highlighter'} onClick={() => setActiveTool('highlighter')} />
       <ToolButton icon={ICONS.eraser} label="Eraser" shortcut="E" active={activeTool === 'eraser'} onClick={() => setActiveTool('eraser')} />
       <ToolButton icon={ICONS.line} label="Line" shortcut="L" active={activeTool === 'line'} onClick={() => setActiveTool('line')} />
-      <ToolButton icon={ICONS.rectangle} label="Rectangle" shortcut="" active={activeTool === 'rectangle'} onClick={() => setActiveTool('rectangle')} />
-      <ToolButton icon={ICONS.ellipse} label="Ellipse" shortcut="" active={activeTool === 'ellipse'} onClick={() => setActiveTool('ellipse')} />
+      <ToolButton icon={ICONS.rectangle} label="Rectangle" shortcut="U" active={activeTool === 'rectangle'} onClick={() => setActiveTool('rectangle')} />
+      <ToolButton icon={ICONS.ellipse} label="Ellipse" shortcut="O" active={activeTool === 'ellipse'} onClick={() => setActiveTool('ellipse')} />
+      <ToolButton icon={ICONS.compass} label="Compass" shortcut="" active={activeTool === 'compass'} onClick={() => setActiveTool('compass')} />
       <ToolButton icon={ICONS.text} label="Text" shortcut="T" active={activeTool === 'text'} onClick={() => setActiveTool('text')} />
-      <ToolButton icon={ICONS.laser} label="Laser Pointer" shortcut="" active={activeTool === 'laser'} onClick={() => setActiveTool('laser')} />
+      <ToolButton icon={ICONS.laser} label="Laser Pointer" shortcut="R" active={activeTool === 'laser'} onClick={() => setActiveTool('laser')} />
+
+      <div className="tool-separator" />
+
+      <ToolButton icon={ICONS.ruler} label="Ruler" shortcut="" onClick={() => toggleOverlay('ruler')} />
+      <ToolButton icon={ICONS.protractor} label="Protractor" shortcut="" onClick={() => toggleOverlay('protractor')} />
+      <ToolButton icon={ICONS.setSquare} label="Set Square" shortcut="" onClick={() => toggleOverlay('setSquare')} />
 
       <div className="tool-separator" />
 
@@ -67,6 +87,7 @@ export default function LeftToolbar() {
       <div className="tool-separator" />
 
       <ToolButton icon={ICONS.clear} label="Clear Page" shortcut="" onClick={handleClear} />
+      <BackgroundPicker />
 
       <div className="tool-separator" />
 

@@ -9,7 +9,7 @@ export class CanvasRenderer {
 
   // Render the full page: background + grid + objects + selection handles
   renderPage(ctx, page, coordSystem, options = {}) {
-    const { showGrid, selectedObjectIds = [], selectionRect } = options;
+    const { showGrid, selectedObjectIds = [], selectionRect, boardBackground } = options;
     const canvas = ctx.canvas;
     const dpr = coordSystem.dpr;
 
@@ -17,8 +17,8 @@ export class CanvasRenderer {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Draw background
-    this.renderBackground(ctx, page.background, canvas, coordSystem);
+    // Draw background (board-level background overrides page background)
+    this.renderBackground(ctx, page.background, canvas, coordSystem, boardBackground);
 
     // Draw grid if enabled
     if (showGrid) {
@@ -47,11 +47,70 @@ export class CanvasRenderer {
     }
   }
 
-  renderBackground(ctx, bg, canvas, coordSystem) {
+  renderBackground(ctx, bg, canvas, coordSystem, boardBackground) {
     coordSystem.resetTransform(ctx);
     const w = canvas.width / coordSystem.dpr;
     const h = canvas.height / coordSystem.dpr;
 
+    // Board-level background takes priority
+    if (boardBackground) {
+      if (boardBackground === 'black') {
+        ctx.fillStyle = '#1A1A2E';
+        ctx.fillRect(0, 0, w, h);
+        return;
+      }
+
+      if (boardBackground === 'copy') {
+        // White paper base
+        ctx.fillStyle = '#FFFEF7';
+        ctx.fillRect(0, 0, w, h);
+
+        // Notebook ruled lines (blue, horizontal)
+        const lineSpacing = 28;
+        const startY = 60; // top margin before lines start
+        ctx.strokeStyle = 'rgba(100, 149, 237, 0.35)';
+        ctx.lineWidth = 0.8;
+
+        const panY = coordSystem.panY || 0;
+        const zoom = coordSystem.zoom || 1;
+        const step = lineSpacing * zoom;
+        const offset = ((panY % step) + step) % step;
+
+        ctx.beginPath();
+        for (let y = offset; y < h; y += step) {
+          ctx.moveTo(0, y);
+          ctx.lineTo(w, y);
+        }
+        ctx.stroke();
+
+        // Top header line (slightly thicker)
+        const headerY = startY * zoom + (panY % step);
+        ctx.strokeStyle = 'rgba(100, 149, 237, 0.5)';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(0, headerY);
+        ctx.lineTo(w, headerY);
+        ctx.stroke();
+
+        // Red margin line (vertical, left side)
+        const marginX = 70 * zoom + (coordSystem.panX || 0);
+        ctx.strokeStyle = 'rgba(220, 80, 80, 0.45)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(marginX, 0);
+        ctx.lineTo(marginX, h);
+        ctx.stroke();
+
+        return;
+      }
+
+      // Default: white
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, w, h);
+      return;
+    }
+
+    // Fallback to page-level background config
     if (!bg || bg.type === 'solid') {
       ctx.fillStyle = bg?.color || '#FFFFFF';
       ctx.fillRect(0, 0, w, h);
@@ -165,6 +224,9 @@ export class CanvasRenderer {
       case 'image':
       case 'pdf':
         this.renderImage(ctx, obj);
+        break;
+      case 'compass':
+        this.renderCompass(ctx, obj);
         break;
     }
 
@@ -356,6 +418,35 @@ export class CanvasRenderer {
     if (img.complete && img.naturalWidth > 0) {
       ctx.drawImage(img, b.x, b.y, b.w, b.h);
     }
+  }
+
+  renderCompass(ctx, obj) {
+    const { cx, cy, radius, startAngle, endAngle, color, lineWidth, fill, fillColor } = obj;
+    if (!radius || radius < 1) return;
+
+    ctx.strokeStyle = color || '#000000';
+    ctx.lineWidth = lineWidth || 2;
+    ctx.lineCap = 'round';
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, startAngle || 0, endAngle || Math.PI * 2);
+
+    if (fill && fillColor && fillColor !== 'transparent') {
+      ctx.fillStyle = fillColor;
+      ctx.fill();
+    }
+    ctx.stroke();
+
+    // Center crosshair
+    ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+    ctx.lineWidth = 0.5;
+    const cross = 6;
+    ctx.beginPath();
+    ctx.moveTo(cx - cross, cy);
+    ctx.lineTo(cx + cross, cy);
+    ctx.moveTo(cx, cy - cross);
+    ctx.lineTo(cx, cy + cross);
+    ctx.stroke();
   }
 
   renderSelectionHandles(ctx, objects, selectedIds, coordSystem) {

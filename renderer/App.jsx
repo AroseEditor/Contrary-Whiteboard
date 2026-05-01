@@ -53,14 +53,32 @@ function matchesShortcut(e, shortcut) {
 export default function App() {
   const isBlankScreen = useUIStore(s => s.isBlankScreen);
   const blankScreenColor = useUIStore(s => s.blankScreenColor);
+  const boardBackground = useUIStore(s => s.boardBackground);
   const autoSaveTimerRef = useRef(null);
   const keybindings = useSettingsStore(s => s.keybindings);
 
   // Initialize stores on mount
   useEffect(() => {
     useDocumentStore.getState().init();
-    useSettingsStore.getState().loadSettings();
+    useSettingsStore.getState().loadSettings().then(() => {
+      // Restore saved background
+      const saved = useSettingsStore.getState().boardBackground;
+      if (saved) {
+        useUIStore.getState().setBoardBackground(saved);
+      }
+    });
   }, []);
+
+  // Apply UI theme based on board background
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.remove('theme-dark', 'theme-light');
+    if (boardBackground === 'black') {
+      root.classList.add('theme-dark');
+    } else {
+      root.classList.add('theme-light');
+    }
+  }, [boardBackground]);
 
   // Check for crash recovery on startup
   useEffect(() => {
@@ -172,6 +190,26 @@ export default function App() {
               doc.addObject(imgObj);
             };
             img.src = result.data;
+          }
+          break;
+        }
+
+        case 'import-pdf': {
+          const filePath = await ipcRenderer.invoke('dialog:open-file-raw', {
+            title: 'Import PDF',
+            filters: [{ name: 'PDF Files', extensions: ['pdf'] }]
+          });
+          if (filePath) {
+            try {
+              const fileData = await ipcRenderer.invoke('file:read-binary', filePath);
+              if (fileData) {
+                const { importPDFToDocument } = require('./export/importPDF');
+                const pageCount = await importPDFToDocument(fileData.buffer || fileData, useDocumentStore);
+                console.log(`[PDF Import] Imported ${pageCount} pages`);
+              }
+            } catch (err) {
+              console.error('[PDF Import] Failed:', err);
+            }
           }
           break;
         }

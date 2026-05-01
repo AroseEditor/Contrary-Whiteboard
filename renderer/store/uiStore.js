@@ -11,6 +11,7 @@ const useUIStore = create((set) => ({
   showGrid: false,
   showSettings: false,
   showShortcuts: false,
+  boardBackground: 'white', // 'white' | 'black' | 'copy'
 
   // Context menu
   contextMenu: null, // { x, y, items } or null
@@ -49,7 +50,8 @@ const useUIStore = create((set) => ({
   setShowShortcuts: (v) => set({ showShortcuts: v }),
 
   setContextMenu: (menu) => set({ contextMenu: menu }),
-  hideContextMenu: () => set({ contextMenu: null })
+  hideContextMenu: () => set({ contextMenu: null }),
+  setBoardBackground: (bg) => set({ boardBackground: bg })
 }));
 
 export default useUIStore;

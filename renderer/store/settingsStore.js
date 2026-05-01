@@ -69,6 +69,7 @@ const DEFAULT_SETTINGS = {
   defaultPenColor: '#1A1A1A',
   defaultPenWidth: 3,
   defaultHighlighterColor: '#FFEB3B',
+  boardBackground: 'white',
   keybindings: { ...DEFAULT_KEYBINDINGS },
   stylus: { ...DEFAULT_STYLUS }
 };
@@ -116,6 +117,7 @@ const useSettingsStore = create((set, get) => ({
       defaultPenColor: state.defaultPenColor,
       defaultPenWidth: state.defaultPenWidth,
       defaultHighlighterColor: state.defaultHighlighterColor,
+      boardBackground: state.boardBackground,
       keybindings: state.keybindings,
       stylus: state.stylus
     };
