@@ -5,22 +5,39 @@ module.exports = {
     output: 'release'
   },
   win: {
-    target: ['nsis', 'portable'],
+    target: [
+      {
+        target: 'nsis',
+        arch: ['x64']
+      }
+    ],
     icon: 'assets/icon.ico',
     artifactName: '${productName}-Setup-${version}.${ext}'
   },
   nsis: {
     oneClick: false,
+    perMachine: true,
+    allowElevation: true,
     allowToChangeInstallationDirectory: true,
+    createDesktopShortcut: true,
+    createStartMenuShortcut: true,
+    shortcutName: 'Contrary Whiteboard',
     installerIcon: 'assets/icon.ico',
     uninstallerIcon: 'assets/icon.ico',
     installerHeaderIcon: 'assets/icon.ico',
-    deleteAppDataOnUninstall: false
+    deleteAppDataOnUninstall: false,
+    installerSidebar: null,
+    license: null
   },
   mac: {
-    target: ['dmg'],
+    target: [
+      {
+        target: 'dmg',
+        arch: ['x64', 'arm64']
+      }
+    ],
     icon: 'assets/icon.icns',
-    artifactName: '${productName}-${version}.${ext}',
+    artifactName: '${productName}-${version}-${arch}.${ext}',
     category: 'public.app-category.education'
   },
   dmg: {
@@ -30,7 +47,12 @@ module.exports = {
     ]
   },
   linux: {
-    target: ['AppImage'],
+    target: [
+      {
+        target: 'AppImage',
+        arch: ['x64']
+      }
+    ],
     icon: 'assets/icon.png',
     artifactName: '${productName}-${version}.${ext}',
     category: 'Education'
