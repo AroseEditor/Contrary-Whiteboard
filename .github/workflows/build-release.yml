@@ -1,20 +1,27 @@
-name: Build & Release
+name: Build & Draft Release
 
 on:
   push:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag (e.g. v1.0.0)'
+        required: false
+        default: 'dev'
 
 permissions:
   contents: write
 
 env:
   QT_VERSION: '6.8.3'
+  APP_NAME: 'ContraryWhiteboard'
+  APP_DISPLAY_NAME: 'Contrary Whiteboard'
 
 jobs:
   # ──────────────────────────────────────────────────
-  # Windows Build
+  # Windows Build + NSIS Installer
   # ──────────────────────────────────────────────────
   build-windows:
     runs-on: windows-latest
@@ -31,64 +38,168 @@ jobs:
           host: 'windows'
           target: 'desktop'
           arch: 'win64_msvc2022_64'
-          modules: 'qtwebengine qtmultimedia qtsvg qt5compat'
+          modules: 'qtwebengine qtmultimedia qt5compat'
 
       - name: Setup MSVC
         uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: x64
 
-      - name: Install Dependencies
-        shell: pwsh
-        run: |
-          # Clone OpenBoard-ThirdParty for Windows deps
-          git clone --depth 1 https://github.com/OpenBoard-org/OpenBoard-ThirdParty.git thirdpartydeps_ci
-          # If thirdpartydeps exists in repo, use that; otherwise use cloned
-          if (Test-Path "thirdpartydeps/libs.pri") {
-            Write-Host "Using repo thirdpartydeps"
-          } else {
-            Copy-Item -Recurse thirdpartydeps_ci/* thirdpartydeps/ -Force
-          }
-
-      - name: Build with CMake
+      - name: Configure CMake
         shell: pwsh
         run: |
           mkdir build
           cd build
           cmake .. -G "Visual Studio 17 2022" -A x64 `
             -DCMAKE_PREFIX_PATH="$env:Qt6_DIR" `
-            -DQT_VERSION=6
+            -DQT_VERSION=6 `
+            -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        shell: pwsh
+        run: |
+          cd build
           cmake --build . --config Release --parallel
 
-      - name: Package (Inno Setup)
+      - name: Deploy Qt DLLs
         shell: pwsh
         run: |
-          # Create installer directory
-          mkdir installer
-          Copy-Item build/Release/ContraryWhiteboard.exe installer/
-          # Copy Qt DLLs
-          cd installer
-          & "$env:Qt6_DIR/bin/windeployqt.exe" --release --no-translations ContraryWhiteboard.exe
-          cd ..
+          # Create installer staging directory
+          New-Item -ItemType Directory -Path deploy -Force
+          
+          # Find the built executable
+          $exe = Get-ChildItem -Path build -Recurse -Filter "*.exe" | Where-Object { $_.Name -match "contrary|openboard" } | Select-Object -First 1
+          if (-not $exe) {
+            $exe = Get-ChildItem -Path build/Release -Filter "*.exe" | Select-Object -First 1
+          }
+          Write-Host "Found executable: $($exe.FullName)"
+          Copy-Item $exe.FullName deploy/ContraryWhiteboard.exe
+          
+          # Deploy Qt dependencies
+          & "$env:Qt6_DIR/bin/windeployqt.exe" --release --no-translations --no-system-d3d-compiler --no-opengl-sw deploy/ContraryWhiteboard.exe
+          
           # Copy resources
-          Copy-Item -Recurse resources/etc installer/
-          Copy-Item -Recurse resources/library installer/
-          Copy-Item -Recurse resources/fonts installer/
-          Copy-Item -Recurse resources/customizations installer/ -ErrorAction SilentlyContinue
+          Copy-Item -Recurse resources/etc deploy/etc -ErrorAction SilentlyContinue
+          Copy-Item -Recurse resources/library deploy/library -ErrorAction SilentlyContinue
+          Copy-Item -Recurse resources/fonts deploy/fonts -ErrorAction SilentlyContinue
+          Copy-Item -Recurse resources/customizations deploy/customizations -ErrorAction SilentlyContinue
+          
+          # Copy thirdparty DLLs
+          Get-ChildItem -Path thirdpartydeps -Recurse -Filter "*.dll" | ForEach-Object {
+            Copy-Item $_.FullName deploy/ -ErrorAction SilentlyContinue
+          }
 
-      - name: Create ZIP
+      - name: Create NSIS Installer
         shell: pwsh
         run: |
-          Compress-Archive -Path installer/* -DestinationPath ContraryWhiteboard-Windows-x64.zip
+          # Write NSIS script
+          @'
+          !include "MUI2.nsh"
+          !include "FileFunc.nsh"
+          
+          Name "Contrary Whiteboard"
+          OutFile "ContraryWhiteboard-Setup-x64.exe"
+          InstallDir "$PROGRAMFILES64\Contrary Whiteboard"
+          InstallDirRegKey HKLM "Software\ContraryWhiteboard" "InstallDir"
+          RequestExecutionLevel admin
+          
+          ; Version info
+          VIProductVersion "1.0.0.0"
+          VIAddVersionKey "ProductName" "Contrary Whiteboard"
+          VIAddVersionKey "CompanyName" "AroseEditor"
+          VIAddVersionKey "LegalCopyright" "(c) 2026 AroseEditor"
+          VIAddVersionKey "FileDescription" "Contrary Whiteboard Installer"
+          VIAddVersionKey "FileVersion" "1.0.0"
+          VIAddVersionKey "ProductVersion" "1.0.0"
+          
+          ; UI
+          !define MUI_ICON "resources\images\ContraryWhiteboard.png"
+          !define MUI_ABORTWARNING
+          !define MUI_WELCOMEPAGE_TITLE "Welcome to Contrary Whiteboard Setup"
+          !define MUI_WELCOMEPAGE_TEXT "This will install Contrary Whiteboard on your computer.$\r$\n$\r$\nContrary Whiteboard is a powerful interactive whiteboard for education and presentations.$\r$\n$\r$\nClick Next to continue."
+          !define MUI_FINISHPAGE_RUN "$INSTDIR\ContraryWhiteboard.exe"
+          !define MUI_FINISHPAGE_RUN_TEXT "Launch Contrary Whiteboard"
+          
+          ; Pages
+          !insertmacro MUI_PAGE_WELCOME
+          !insertmacro MUI_PAGE_LICENSE "LICENSE"
+          !insertmacro MUI_PAGE_DIRECTORY
+          !insertmacro MUI_PAGE_INSTFILES
+          !insertmacro MUI_PAGE_FINISH
+          
+          ; Uninstaller pages
+          !insertmacro MUI_UNPAGE_CONFIRM
+          !insertmacro MUI_UNPAGE_INSTFILES
+          
+          ; Language
+          !insertmacro MUI_LANGUAGE "English"
+          
+          Section "Install"
+            SetOutPath "$INSTDIR"
+            
+            ; Copy all files from deploy directory
+            File /r "deploy\*.*"
+            
+            ; Create uninstaller
+            WriteUninstaller "$INSTDIR\Uninstall.exe"
+            
+            ; Start menu shortcuts
+            CreateDirectory "$SMPROGRAMS\Contrary Whiteboard"
+            CreateShortcut "$SMPROGRAMS\Contrary Whiteboard\Contrary Whiteboard.lnk" "$INSTDIR\ContraryWhiteboard.exe"
+            CreateShortcut "$SMPROGRAMS\Contrary Whiteboard\Uninstall.lnk" "$INSTDIR\Uninstall.exe"
+            
+            ; Desktop shortcut
+            CreateShortcut "$DESKTOP\Contrary Whiteboard.lnk" "$INSTDIR\ContraryWhiteboard.exe"
+            
+            ; Registry entries for Add/Remove Programs
+            WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\ContraryWhiteboard" "DisplayName" "Contrary Whiteboard"
+            WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\ContraryWhiteboard" "UninstallString" '"$INSTDIR\Uninstall.exe"'
+            WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\ContraryWhiteboard" "InstallLocation" "$INSTDIR"
+            WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\ContraryWhiteboard" "Publisher" "AroseEditor"
+            WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\ContraryWhiteboard" "DisplayVersion" "1.0.0"
+            WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\ContraryWhiteboard" "DisplayIcon" "$INSTDIR\ContraryWhiteboard.exe"
+            WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\ContraryWhiteboard" "NoModify" 1
+            WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\ContraryWhiteboard" "NoRepair" 1
+            
+            ; Get installed size
+            ${GetSize} "$INSTDIR" "/S=0K" $0 $1 $2
+            IntFmt $0 "0x%08X" $0
+            WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\ContraryWhiteboard" "EstimatedSize" "$0"
+            
+            ; File association for .ubz files
+            WriteRegStr HKCR ".ubz" "" "ContraryWhiteboard.Document"
+            WriteRegStr HKCR "ContraryWhiteboard.Document" "" "Contrary Whiteboard Document"
+            WriteRegStr HKCR "ContraryWhiteboard.Document\DefaultIcon" "" "$INSTDIR\ContraryWhiteboard.exe,0"
+            WriteRegStr HKCR "ContraryWhiteboard.Document\shell\open\command" "" '"$INSTDIR\ContraryWhiteboard.exe" "%1"'
+          SectionEnd
+          
+          Section "Uninstall"
+            ; Remove files
+            RMDir /r "$INSTDIR"
+            
+            ; Remove shortcuts
+            RMDir /r "$SMPROGRAMS\Contrary Whiteboard"
+            Delete "$DESKTOP\Contrary Whiteboard.lnk"
+            
+            ; Remove registry
+            DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\ContraryWhiteboard"
+            DeleteRegKey HKLM "Software\ContraryWhiteboard"
+            DeleteRegKey HKCR ".ubz"
+            DeleteRegKey HKCR "ContraryWhiteboard.Document"
+          SectionEnd
+          '@ | Out-File -Encoding UTF8 installer.nsi
+          
+          # Run NSIS
+          makensis installer.nsi
 
-      - name: Upload Artifact
+      - name: Upload Windows Installer
         uses: actions/upload-artifact@v4
         with:
-          name: windows-build
-          path: ContraryWhiteboard-Windows-x64.zip
+          name: windows-installer
+          path: ContraryWhiteboard-Setup-x64.exe
 
   # ──────────────────────────────────────────────────
-  # macOS Build
+  # macOS Build + DMG Installer
   # ──────────────────────────────────────────────────
   build-macos:
     runs-on: macos-14
@@ -105,36 +216,48 @@ jobs:
           host: 'mac'
           target: 'desktop'
           arch: 'clang_64'
-          modules: 'qtwebengine qtmultimedia qtsvg qt5compat'
+          modules: 'qtwebengine qtmultimedia qt5compat'
 
       - name: Install Dependencies
         run: |
           brew install poppler quazip openssl@3 ffmpeg pkg-config
 
-      - name: Build with CMake
+      - name: Configure & Build
         run: |
           mkdir build && cd build
           cmake .. \
             -DCMAKE_PREFIX_PATH="$Qt6_DIR" \
             -DQT_VERSION=6 \
+            -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64"
           cmake --build . --config Release --parallel $(sysctl -n hw.logicalcpu)
 
-      - name: Package DMG
+      - name: Create DMG
         run: |
           cd build
-          # Deploy Qt frameworks
-          $Qt6_DIR/bin/macdeployqt ContraryWhiteboard.app -dmg
-          mv ContraryWhiteboard.dmg ../ContraryWhiteboard-macOS-Universal.dmg
+          
+          # If .app bundle exists, deploy Qt and create DMG
+          if [ -d "ContraryWhiteboard.app" ] || [ -d "contrarywhiteboard.app" ]; then
+            APP=$(ls -d *.app | head -1)
+            $Qt6_DIR/bin/macdeployqt "$APP" -dmg
+            mv *.dmg ../ContraryWhiteboard-macOS-Universal.dmg
+          else
+            # Fallback: create a simple DMG from the binary
+            mkdir -p dmg_staging
+            cp contrarywhiteboard dmg_staging/ 2>/dev/null || cp ContraryWhiteboard dmg_staging/ 2>/dev/null || true
+            cp -r ../resources/etc dmg_staging/
+            cp -r ../resources/library dmg_staging/
+            hdiutil create -volname "Contrary Whiteboard" -srcfolder dmg_staging -ov -format UDZO ../ContraryWhiteboard-macOS-Universal.dmg
+          fi
 
-      - name: Upload Artifact
+      - name: Upload macOS DMG
         uses: actions/upload-artifact@v4
         with:
-          name: macos-build
+          name: macos-installer
           path: ContraryWhiteboard-macOS-Universal.dmg
 
   # ──────────────────────────────────────────────────
-  # Linux Build
+  # Linux Build + DEB + AppImage
   # ──────────────────────────────────────────────────
   build-linux:
     runs-on: ubuntu-22.04
@@ -151,14 +274,14 @@ jobs:
           host: 'linux'
           target: 'desktop'
           arch: 'linux_gcc_64'
-          modules: 'qtwebengine qtmultimedia qtsvg qt5compat'
+          modules: 'qtwebengine qtmultimedia qt5compat'
 
       - name: Install Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
             libpoppler-dev libpoppler-cpp-dev \
-            libquazip5-dev libquazip1-qt6-dev \
+            libquazip1-qt6-dev \
             libssl-dev zlib1g-dev \
             libx11-dev libxext-dev \
             libopengl-dev libgl1-mesa-dev \
@@ -169,45 +292,43 @@ jobs:
             libnss3 libxss1 libasound2 \
             fuse libfuse2
 
-      - name: Build with CMake
+      - name: Configure & Build
         run: |
           mkdir build && cd build
           cmake .. \
             -DCMAKE_PREFIX_PATH="$Qt6_DIR" \
             -DQT_VERSION=6 \
+            -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_INSTALL_PREFIX=/usr
           cmake --build . --parallel $(nproc)
 
-      - name: Package DEB
+      - name: Create DEB Package
         run: |
-          cd build
-          # Create debian package structure
-          mkdir -p pkg/DEBIAN
-          mkdir -p pkg/usr/bin
-          mkdir -p pkg/usr/share/applications
-          mkdir -p pkg/usr/share/icons/hicolor/256x256/apps
-          mkdir -p pkg/usr/share/contrarywhiteboard
+          VERSION="1.0.0"
+          PKG_DIR="contrarywhiteboard_${VERSION}_amd64"
           
-          cp contrarywhiteboard pkg/usr/bin/
-          cp -r ../resources/etc pkg/usr/share/contrarywhiteboard/
-          cp -r ../resources/library pkg/usr/share/contrarywhiteboard/
-          cp -r ../resources/fonts pkg/usr/share/contrarywhiteboard/
-          cp ../resources/images/ContraryWhiteboard.png pkg/usr/share/icons/hicolor/256x256/apps/contrarywhiteboard.png
+          mkdir -p $PKG_DIR/DEBIAN
+          mkdir -p $PKG_DIR/usr/bin
+          mkdir -p $PKG_DIR/usr/share/applications
+          mkdir -p $PKG_DIR/usr/share/icons/hicolor/256x256/apps
+          mkdir -p $PKG_DIR/usr/share/contrarywhiteboard/etc
+          mkdir -p $PKG_DIR/usr/share/contrarywhiteboard/library
+          mkdir -p $PKG_DIR/usr/share/contrarywhiteboard/fonts
+          mkdir -p $PKG_DIR/usr/share/contrarywhiteboard/i18n
           
-          cat > pkg/DEBIAN/control << 'EOF'
-          Package: contrarywhiteboard
-          Version: 1.0.0
-          Section: education
-          Priority: optional
-          Architecture: amd64
-          Depends: libqt6core6, libqt6gui6, libqt6widgets6, libqt6network6, libqt6xml6, libqt6svg6, libqt6webenginewidgets6, libpoppler-cpp0v5, libssl3
-          Maintainer: AroseEditor <aroseeeditor@github.com>
-          Description: Contrary Whiteboard - Interactive Whiteboard
-           A powerful cross-platform interactive whiteboard for education and presentations.
-           Fork of OpenBoard with additional features including AI assistant and equation tools.
-          EOF
+          # Copy binary
+          cp build/contrarywhiteboard $PKG_DIR/usr/bin/ 2>/dev/null || \
+          cp build/ContraryWhiteboard $PKG_DIR/usr/bin/contrarywhiteboard 2>/dev/null || true
+          chmod +x $PKG_DIR/usr/bin/contrarywhiteboard
           
-          cat > pkg/usr/share/applications/contrarywhiteboard.desktop << 'EOF'
+          # Copy resources
+          cp -r resources/etc/* $PKG_DIR/usr/share/contrarywhiteboard/etc/ 2>/dev/null || true
+          cp -r resources/library/* $PKG_DIR/usr/share/contrarywhiteboard/library/ 2>/dev/null || true
+          cp -r resources/fonts/* $PKG_DIR/usr/share/contrarywhiteboard/fonts/ 2>/dev/null || true
+          cp resources/images/ContraryWhiteboard.png $PKG_DIR/usr/share/icons/hicolor/256x256/apps/contrarywhiteboard.png 2>/dev/null || true
+          
+          # Desktop entry
+          cat > $PKG_DIR/usr/share/applications/contrarywhiteboard.desktop << 'DESKTOP'
           [Desktop Entry]
           Name=Contrary Whiteboard
           Comment=Interactive Whiteboard for Education
@@ -217,29 +338,53 @@ jobs:
           Type=Application
           Categories=Education;
           MimeType=application/vnd.mnemis-uniboard-document;
-          EOF
+          DESKTOP
           
-          dpkg-deb --build pkg contrarywhiteboard_1.0.0_amd64.deb
-          mv contrarywhiteboard_1.0.0_amd64.deb ../
+          # Control file
+          cat > $PKG_DIR/DEBIAN/control << CTRL
+          Package: contrarywhiteboard
+          Version: ${VERSION}
+          Section: education
+          Priority: optional
+          Architecture: amd64
+          Depends: libqt6core6 (>= 6.2), libqt6gui6, libqt6widgets6, libqt6network6, libqt6xml6, libqt6svg6, libpoppler-cpp0v5, libssl3
+          Maintainer: AroseEditor <https://github.com/AroseEditor>
+          Homepage: https://github.com/AroseEditor/Contrary-Whiteboard
+          Description: Contrary Whiteboard - Interactive Whiteboard
+           A powerful cross-platform interactive whiteboard for education
+           and presentations. Features drawing tools, geometry instruments,
+           PDF import/export, web widgets, and AI assistant.
+           .
+           Fork of OpenBoard with additional features.
+          CTRL
+          
+          # Build DEB
+          dpkg-deb --build --root-owner-group $PKG_DIR
+          mv ${PKG_DIR}.deb contrarywhiteboard_${VERSION}_amd64.deb
 
-      - name: Package AppImage
+      - name: Create AppImage
         run: |
           # Download linuxdeploy
           wget -q https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
           wget -q https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage
           chmod +x linuxdeploy*.AppImage
           
+          # Create AppDir structure
           mkdir -p AppDir/usr/bin
           mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
           mkdir -p AppDir/usr/share/applications
           mkdir -p AppDir/usr/share/contrarywhiteboard
           
-          cp build/contrarywhiteboard AppDir/usr/bin/
-          cp resources/images/ContraryWhiteboard.png AppDir/usr/share/icons/hicolor/256x256/apps/contrarywhiteboard.png
-          cp -r resources/etc AppDir/usr/share/contrarywhiteboard/
-          cp -r resources/library AppDir/usr/share/contrarywhiteboard/
-          cp -r resources/fonts AppDir/usr/share/contrarywhiteboard/
+          cp build/contrarywhiteboard AppDir/usr/bin/ 2>/dev/null || \
+          cp build/ContraryWhiteboard AppDir/usr/bin/contrarywhiteboard 2>/dev/null || true
+          chmod +x AppDir/usr/bin/contrarywhiteboard
           
+          cp resources/images/ContraryWhiteboard.png AppDir/usr/share/icons/hicolor/256x256/apps/contrarywhiteboard.png 2>/dev/null || true
+          cp -r resources/etc AppDir/usr/share/contrarywhiteboard/ 2>/dev/null || true
+          cp -r resources/library AppDir/usr/share/contrarywhiteboard/ 2>/dev/null || true
+          cp -r resources/fonts AppDir/usr/share/contrarywhiteboard/ 2>/dev/null || true
+          
+          # Desktop file for AppImage
           cat > AppDir/contrarywhiteboard.desktop << 'EOF'
           [Desktop Entry]
           Name=Contrary Whiteboard
@@ -249,42 +394,91 @@ jobs:
           Categories=Education;
           EOF
           
+          # Copy icon to root of AppDir too
+          cp resources/images/ContraryWhiteboard.png AppDir/contrarywhiteboard.png 2>/dev/null || true
+          
           export QMAKE=$Qt6_DIR/bin/qmake
-          ./linuxdeploy-x86_64.AppImage --appdir AppDir --plugin qt --output appimage
-          mv Contrary_Whiteboard*.AppImage ContraryWhiteboard-Linux-x86_64.AppImage
+          export LD_LIBRARY_PATH=$Qt6_DIR/lib:$LD_LIBRARY_PATH
+          ./linuxdeploy-x86_64.AppImage --appdir AppDir --plugin qt --output appimage || true
+          
+          # Rename the output
+          mv Contrary*.AppImage ContraryWhiteboard-Linux-x86_64.AppImage 2>/dev/null || true
 
-      - name: Upload DEB
+      - name: Upload Linux DEB
         uses: actions/upload-artifact@v4
         with:
           name: linux-deb
-          path: contrarywhiteboard_1.0.0_amd64.deb
+          path: contrarywhiteboard_*_amd64.deb
 
-      - name: Upload AppImage
+      - name: Upload Linux AppImage
         uses: actions/upload-artifact@v4
         with:
           name: linux-appimage
           path: ContraryWhiteboard-Linux-x86_64.AppImage
+          if-no-files-found: ignore
 
   # ──────────────────────────────────────────────────
-  # Create GitHub Release
+  # Draft GitHub Release with all installers
   # ──────────────────────────────────────────────────
-  release:
+  draft-release:
     needs: [build-windows, build-macos, build-linux]
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
     steps:
+      - name: Checkout (for changelog)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Download all artifacts
         uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
 
-      - name: Create Release
+      - name: List artifacts
+        run: find release-artifacts -type f | head -20
+
+      - name: Determine version
+        id: version
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            echo "tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+            echo "name=Contrary Whiteboard ${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=dev-$(date +%Y%m%d-%H%M%S)" >> $GITHUB_OUTPUT
+            echo "name=Contrary Whiteboard Dev Build $(date +%Y-%m-%d)" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          echo "## What's New" > CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          git log --oneline -20 >> CHANGELOG.md 2>/dev/null || echo "Initial release" >> CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          echo "## Downloads" >> CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          echo "| Platform | File |" >> CHANGELOG.md
+          echo "|----------|------|" >> CHANGELOG.md
+          echo "| **Windows** | \`ContraryWhiteboard-Setup-x64.exe\` |" >> CHANGELOG.md
+          echo "| **macOS** | \`ContraryWhiteboard-macOS-Universal.dmg\` |" >> CHANGELOG.md
+          echo "| **Linux (DEB)** | \`contrarywhiteboard_1.0.0_amd64.deb\` |" >> CHANGELOG.md
+          echo "| **Linux (AppImage)** | \`ContraryWhiteboard-Linux-x86_64.AppImage\` |" >> CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          echo "---" >> CHANGELOG.md
+          echo "*Contrary Whiteboard is a fork of [OpenBoard](https://github.com/OpenBoard-org/OpenBoard)*" >> CHANGELOG.md
+
+      - name: Create Draft Release
         uses: softprops/action-gh-release@v2
         with:
-          name: "Contrary Whiteboard ${{ github.ref_name }}"
-          draft: false
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: ${{ steps.version.outputs.name }}
+          body_path: CHANGELOG.md
+          draft: true
           prerelease: false
-          generate_release_notes: true
           files: |
-            windows-build/ContraryWhiteboard-Windows-x64.zip
-            macos-build/ContraryWhiteboard-macOS-Universal.dmg
-            linux-deb/contrarywhiteboard_1.0.0_amd64.deb
-            linux-appimage/ContraryWhiteboard-Linux-x86_64.AppImage
+            release-artifacts/windows-installer/ContraryWhiteboard-Setup-x64.exe
+            release-artifacts/macos-installer/ContraryWhiteboard-macOS-Universal.dmg
+            release-artifacts/linux-deb/contrarywhiteboard_*_amd64.deb
+            release-artifacts/linux-appimage/ContraryWhiteboard-Linux-x86_64.AppImage
+          fail_on_unmatched_files: false
