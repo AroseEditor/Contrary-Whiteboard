@@ -1,4 +1,5 @@
 const path = require('path');
+const webpack = require('webpack');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 
 module.exports = (env, argv) => {
@@ -54,7 +55,13 @@ module.exports = (env, argv) => {
       new HtmlWebpackPlugin({
         template: './renderer/index.html',
         filename: 'index.html'
-      })
+      }),
+      // jspdf optional peer deps — not needed in Electron renderer
+      new webpack.IgnorePlugin({ resourceRegExp: /^html2canvas$/ }),
+      new webpack.IgnorePlugin({ resourceRegExp: /^dompurify$/ }),
+      new webpack.IgnorePlugin({ resourceRegExp: /^canvg$/ }),
+      // pdfjs-dist optional dep — browser has native Canvas
+      new webpack.IgnorePlugin({ resourceRegExp: /^canvas$/, contextRegExp: /node_modules/ })
     ],
     devServer: isDev ? {
       static: path.join(__dirname, 'dist'),
