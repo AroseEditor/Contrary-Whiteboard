@@ -57,11 +57,15 @@ module.exports = {
     artifactName: '${productName}-${version}.${ext}',
     category: 'Education'
   },
+  // No native modules needed — all rendering uses browser HTML5 Canvas
+  npmRebuild: false,
   files: [
     'main/**',
     'dist/**',
     'assets/**',
-    'package.json'
+    'package.json',
+    '!**/node_modules/canvas/**',
+    '!**/node_modules/canvas/{prebuilds,bindings,build}/**'
   ],
   publish: {
     provider: 'github',
