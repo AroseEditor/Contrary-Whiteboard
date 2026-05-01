@@ -2,6 +2,7 @@ import React, { useEffect, useCallback, useRef } from 'react';
 import useDocumentStore from './store/documentStore';
 import useToolStore from './store/toolStore';
 import useUIStore from './store/uiStore';
+import useSettingsStore from './store/settingsStore';
 import PageCanvas from './components/Canvas/PageCanvas';
 import LeftToolbar from './components/Toolbar/LeftToolbar';
 import PropertiesPanel from './components/Properties/PropertiesPanel';
@@ -13,14 +14,52 @@ import ContextMenu from './components/common/ContextMenu';
 const electron = window.require ? window.require('electron') : null;
 const ipcRenderer = electron ? electron.ipcRenderer : null;
 
+// Parse a shortcut string like "Ctrl+Shift+Z" into components
+function parseShortcut(shortcut) {
+  if (!shortcut) return null;
+  const parts = shortcut.split('+');
+  const key = parts[parts.length - 1];
+  return {
+    ctrl: parts.includes('Ctrl'),
+    shift: parts.includes('Shift'),
+    alt: parts.includes('Alt'),
+    key: key.toLowerCase()
+  };
+}
+
+// Check if a keyboard event matches a shortcut
+function matchesShortcut(e, shortcut) {
+  const parsed = parseShortcut(shortcut);
+  if (!parsed) return false;
+
+  const ctrl = e.ctrlKey || e.metaKey;
+  const shift = e.shiftKey;
+  const alt = e.altKey;
+
+  if (parsed.ctrl !== ctrl) return false;
+  if (parsed.shift !== shift) return false;
+  if (parsed.alt !== alt) return false;
+
+  let eventKey = e.key.toLowerCase();
+  if (eventKey === ' ') eventKey = 'space';
+  else if (eventKey === 'arrowup') eventKey = 'up';
+  else if (eventKey === 'arrowdown') eventKey = 'down';
+  else if (eventKey === 'arrowleft') eventKey = 'left';
+  else if (eventKey === 'arrowright') eventKey = 'right';
+
+  return eventKey === parsed.key.toLowerCase();
+}
+
 export default function App() {
   const isBlankScreen = useUIStore(s => s.isBlankScreen);
   const blankScreenColor = useUIStore(s => s.blankScreenColor);
   const autoSaveTimerRef = useRef(null);
+  const keybindings = useSettingsStore(s => s.keybindings);
 
-  // Initialize document store
+  // Initialize stores on mount
   useEffect(() => {
     useDocumentStore.getState().init();
+    useSettingsStore.getState().loadSettings();
   }, []);
 
   // Check for crash recovery on startup
@@ -42,7 +81,6 @@ export default function App() {
           }
         }
 
-        // Delete auto-save file regardless
         await ipcRenderer.invoke('file:delete-auto-save');
       }
     });
@@ -52,13 +90,14 @@ export default function App() {
   useEffect(() => {
     if (!ipcRenderer) return;
 
+    const interval = useSettingsStore.getState().autoSaveInterval * 1000;
     autoSaveTimerRef.current = setInterval(async () => {
       const state = useDocumentStore.getState();
       if (!state.isDirty) return;
 
       const data = state.getSerializableData();
       await ipcRenderer.invoke('file:auto-save', data);
-    }, 60000); // every 60 seconds
+    }, interval);
 
     return () => {
       if (autoSaveTimerRef.current) clearInterval(autoSaveTimerRef.current);
@@ -72,7 +111,6 @@ export default function App() {
     const handleMenuAction = async (event, action, extra) => {
       const doc = useDocumentStore.getState();
       const ui = useUIStore.getState();
-      const tool = useToolStore.getState();
 
       switch (action) {
         case 'new-document':
@@ -153,7 +191,6 @@ export default function App() {
         case 'export-pdf': {
           const filePath = await ipcRenderer.invoke('dialog:export-pdf');
           if (filePath) {
-            // Dynamic import to avoid loading jsPDF until needed
             const { exportPDF } = require('./export/exportPDF');
             const data = doc.getSerializableData();
             await exportPDF(filePath, data, ipcRenderer);
@@ -186,6 +223,7 @@ export default function App() {
         case 'zoom-out': ui.zoomOut(); break;
         case 'zoom-fit': ui.zoomFit(); break;
         case 'zoom-100': ui.zoom100(); break;
+        case 'reset-view': ui.setZoom(1.0); ui.setPanOffset({ x: 0, y: 0 }); break;
 
         case 'toggle-page-panel': ui.setShowPagePanel(extra); break;
         case 'toggle-properties-panel': ui.setShowPropertiesPanel(extra); break;
@@ -201,78 +239,80 @@ export default function App() {
     return () => ipcRenderer.removeListener('menu-action', handleMenuAction);
   }, []);
 
-  // Keyboard shortcuts
+  // Configurable keyboard shortcuts from settingsStore
   useEffect(() => {
     const handleKeyDown = (e) => {
-      // Don't handle shortcuts when typing in inputs
       const tag = e.target.tagName.toLowerCase();
       if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
 
-      const ctrl = e.ctrlKey || e.metaKey;
-      const shift = e.shiftKey;
+      const kb = keybindings;
 
-      // Tool shortcuts (single key, no modifiers)
-      if (!ctrl && !shift && !e.altKey) {
-        switch (e.key.toLowerCase()) {
-          case 'p': useToolStore.getState().setActiveTool('pen'); e.preventDefault(); return;
-          case 'e': useToolStore.getState().setActiveTool('eraser'); e.preventDefault(); return;
-          case 's': useToolStore.getState().setActiveTool('select'); e.preventDefault(); return;
-          case 'escape': useToolStore.getState().setActiveTool('select'); e.preventDefault(); return;
-          case 't': useToolStore.getState().setActiveTool('text'); e.preventDefault(); return;
-          case 'l': useToolStore.getState().setActiveTool('line'); e.preventDefault(); return;
-          case 'h': useToolStore.getState().setActiveTool('highlighter'); e.preventDefault(); return;
-          case 'b': useUIStore.getState().toggleBlankScreen(); e.preventDefault(); return;
-          case 'delete':
-          case 'backspace': {
-            const doc = useDocumentStore.getState();
-            if (doc.selectedObjectIds.length > 0) {
-              doc.removeObjects(doc.selectedObjectIds);
-              e.preventDefault();
-            }
-            return;
-          }
-          case 'pagedown': useDocumentStore.getState().goToNextPage(); e.preventDefault(); return;
-          case 'pageup': useDocumentStore.getState().goToPrevPage(); e.preventDefault(); return;
+      // Tool switching shortcuts
+      if (matchesShortcut(e, kb.pen)) { useToolStore.getState().setActiveTool('pen'); e.preventDefault(); return; }
+      if (matchesShortcut(e, kb.eraser)) { useToolStore.getState().setActiveTool('eraser'); e.preventDefault(); return; }
+      if (matchesShortcut(e, kb.select)) { useToolStore.getState().setActiveTool('select'); e.preventDefault(); return; }
+      if (matchesShortcut(e, kb.text)) { useToolStore.getState().setActiveTool('text'); e.preventDefault(); return; }
+      if (matchesShortcut(e, kb.line)) { useToolStore.getState().setActiveTool('line'); e.preventDefault(); return; }
+      if (matchesShortcut(e, kb.highlighter)) { useToolStore.getState().setActiveTool('highlighter'); e.preventDefault(); return; }
+      if (matchesShortcut(e, kb.laser)) { useToolStore.getState().setActiveTool('laser'); e.preventDefault(); return; }
+      if (matchesShortcut(e, kb.rectangle)) { useToolStore.getState().setActiveTool('rectangle'); e.preventDefault(); return; }
+      if (matchesShortcut(e, kb.ellipse)) { useToolStore.getState().setActiveTool('ellipse'); e.preventDefault(); return; }
+
+      // Escape always = select
+      if (e.key === 'Escape') { useToolStore.getState().setActiveTool('select'); e.preventDefault(); return; }
+
+      // Edit shortcuts
+      if (matchesShortcut(e, kb.undo)) { useDocumentStore.getState().undo(); e.preventDefault(); return; }
+      if (matchesShortcut(e, kb.redo)) { useDocumentStore.getState().redo(); e.preventDefault(); return; }
+      if (matchesShortcut(e, kb.redoAlt)) { useDocumentStore.getState().redo(); e.preventDefault(); return; }
+      if (matchesShortcut(e, kb.copy)) { useDocumentStore.getState().copySelection(); e.preventDefault(); return; }
+      if (matchesShortcut(e, kb.paste)) { useDocumentStore.getState().pasteClipboard(); e.preventDefault(); return; }
+      if (matchesShortcut(e, kb.cut)) { useDocumentStore.getState().cutSelection(); e.preventDefault(); return; }
+      if (matchesShortcut(e, kb.duplicate)) { useDocumentStore.getState().duplicateSelection(); e.preventDefault(); return; }
+      if (matchesShortcut(e, kb.selectAll)) { useDocumentStore.getState().selectAll(); e.preventDefault(); return; }
+
+      // Delete
+      if (matchesShortcut(e, kb.delete) || matchesShortcut(e, kb.deleteAlt)) {
+        const doc = useDocumentStore.getState();
+        if (doc.selectedObjectIds.length > 0) {
+          doc.removeObjects(doc.selectedObjectIds);
+          e.preventDefault();
         }
+        return;
       }
 
-      // Ctrl shortcuts
-      if (ctrl && !shift) {
-        switch (e.key.toLowerCase()) {
-          case 'z': useDocumentStore.getState().undo(); e.preventDefault(); return;
-          case 'y': useDocumentStore.getState().redo(); e.preventDefault(); return;
-          case 'c': useDocumentStore.getState().copySelection(); e.preventDefault(); return;
-          case 'v': useDocumentStore.getState().pasteClipboard(); e.preventDefault(); return;
-          case 'x': useDocumentStore.getState().cutSelection(); e.preventDefault(); return;
-          case 'd': useDocumentStore.getState().duplicateSelection(); e.preventDefault(); return;
-          case 'a': useDocumentStore.getState().selectAll(); e.preventDefault(); return;
-          case '=': case '+': useUIStore.getState().zoomIn(); e.preventDefault(); return;
-          case '-': useUIStore.getState().zoomOut(); e.preventDefault(); return;
-          case '0': useUIStore.getState().zoomFit(); e.preventDefault(); return;
-        }
+      // View shortcuts
+      if (matchesShortcut(e, kb.zoomIn)) { useUIStore.getState().zoomIn(); e.preventDefault(); return; }
+      if (matchesShortcut(e, kb.zoomOut)) { useUIStore.getState().zoomOut(); e.preventDefault(); return; }
+      if (matchesShortcut(e, kb.zoomFit)) { useUIStore.getState().zoomFit(); e.preventDefault(); return; }
+      if (matchesShortcut(e, kb.blankScreen)) { useUIStore.getState().toggleBlankScreen(); e.preventDefault(); return; }
+      if (matchesShortcut(e, kb.resetView)) {
+        useUIStore.setState({ zoom: 1.0, panOffset: { x: 0, y: 0 } });
+        e.preventDefault();
+        return;
       }
 
-      // Ctrl+Shift shortcuts
-      if (ctrl && shift) {
-        switch (e.key.toLowerCase()) {
-          case 'z': useDocumentStore.getState().redo(); e.preventDefault(); return;
-          case 'n': useDocumentStore.getState().addPage(); e.preventDefault(); return;
-        }
+      // File shortcuts (handled by menu accelerators too, but this catches them in dev mode)
+      if (matchesShortcut(e, kb.save)) {
+        ipcRenderer?.invoke('dialog:save-file-or-save');
+        e.preventDefault();
+        return;
       }
+
+      // Page navigation
+      if (matchesShortcut(e, kb.nextPage)) { useDocumentStore.getState().goToNextPage(); e.preventDefault(); return; }
+      if (matchesShortcut(e, kb.prevPage)) { useDocumentStore.getState().goToPrevPage(); e.preventDefault(); return; }
+      if (matchesShortcut(e, kb.newPage)) { useDocumentStore.getState().addPage(); e.preventDefault(); return; }
 
       // F11
       if (e.key === 'F11') {
         e.preventDefault();
-        if (electron) {
-          const win = electron.remote ? electron.remote.getCurrentWindow() : null;
-          // Handled by menu accelerator
-        }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [keybindings]);
 
   // Clipboard paste (images from clipboard)
   useEffect(() => {
@@ -314,7 +354,6 @@ export default function App() {
 
   return (
     <div className="app-container" id="app-container">
-      {/* Blank screen overlay */}
       {isBlankScreen && (
         <div
           className={`blank-screen-overlay ${blankScreenColor}`}
@@ -333,7 +372,6 @@ export default function App() {
 
       <BottomBar />
 
-      {/* Overlays */}
       <SettingsModal />
       <ContextMenu />
     </div>

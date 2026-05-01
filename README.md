@@ -49,7 +49,7 @@
 | 🔴 **Laser Pointer** | Red glowing dot that fades — no marks left on canvas |
 
 ### Canvas System
-- **Infinite canvas** — pan with middle-mouse / Space+drag, zoom with Ctrl+scroll
+- **Infinite canvas** — zoom with scroll wheel, pan with middle-mouse / Space+drag / Ctrl+scroll
 - **Multi-page** — add, delete, duplicate, reorder pages
 - **Layers** — background, drawing, annotation layers per page
 - **Backgrounds** — solid color, grid, ruled lines, dot grid, custom image
@@ -71,9 +71,30 @@
 - **SVG** — vector export of current page
 - **OpenBoard (.ubz)** — compatible with OpenBoard format
 
+### Stylus & Pen Tablet Support
+- **Auto-detection** — stylus input is automatically detected when you start using a pen/tablet
+- **1 and 2-button pens** — barrel button (side button 1) and secondary button (side button 2) fully supported
+- **Eraser tip** — flip-end eraser pens (Wacom, Surface Pen) recognized natively
+- **Pressure sensitivity** — toggle on/off with adjustable sensitivity multiplier (0.1x–3.0x)
+- **Customizable button mapping** — assign any action to each stylus button:
+  - Switch to Eraser, Select, or Pen
+  - Right-click (context menu)
+  - Undo
+  - Pan canvas
+  - Disabled (no action)
+- **Auto-restore** — holding a barrel button temporarily switches tools; releasing restores your previous tool
+- **Compatible hardware** — Wacom (Intuos, Cintiq), Huion, XP-Pen, Surface Pen, Apple Pencil (via touch), and any W3C Pointer Events–compatible HID pen
+
+### Preferences
+- **Persistent settings** — all preferences saved to `settings.json` and restored on launch
+- **Customizable keyboard bindings** — rebind any of the 30+ shortcuts to your preferred key combinations
+- **Tabbed settings UI** — General, Stylus, Keybindings, Shortcuts reference, and About tabs
+- **Per-action reset** or full **Reset All** for keybindings
+- **Modified bindings highlighted** — easy to see what you've changed
+
 ### File Format
 - Native `.cwb` format (JSON + JSZip)
-- Auto-save every 60 seconds
+- Auto-save (configurable interval, default 60s)
 - Crash recovery on startup
 
 ### Presentation
@@ -118,15 +139,21 @@ npm run build
 
 ---
 
-## Keyboard Shortcuts
+## Keyboard Shortcuts (Defaults)
 
-| Action | Shortcut |
+All shortcuts are fully customizable via **Settings → Keybindings**.
+
+| Action | Default Shortcut |
 |--------|----------|
 | Pen | `P` |
 | Eraser | `E` |
 | Select | `S` / `Escape` |
+| Highlighter | `H` |
 | Text | `T` |
 | Line | `L` |
+| Laser Pointer | `R` |
+| Rectangle | `U` |
+| Ellipse | `O` |
 | Undo | `Ctrl+Z` |
 | Redo | `Ctrl+Y` / `Ctrl+Shift+Z` |
 | Copy | `Ctrl+C` |
@@ -138,6 +165,7 @@ npm run build
 | Zoom In | `Ctrl+=` |
 | Zoom Out | `Ctrl+-` |
 | Zoom Fit | `Ctrl+0` |
+| Reset View | `Home` |
 | Next Page | `Page Down` |
 | Prev Page | `Page Up` |
 | New Page | `Ctrl+Shift+N` |
@@ -162,10 +190,10 @@ contrary-whiteboard/
 │   ├── display-manager.js # Multi-monitor management
 │   └── auto-updater.js   # GitHub release update checker
 ├── renderer/             # React UI + canvas engine
-│   ├── store/            # Zustand state management
+│   ├── store/            # Zustand state (document, tool, UI, settings)
 │   ├── components/       # React components
 │   ├── tools/            # Drawing tool implementations
-│   ├── commands/          # Undo/redo command pattern
+│   ├── commands/         # Undo/redo command pattern
 │   ├── export/           # Export format handlers
 │   └── utils/            # Geometry, bezier, hit testing
 ├── assets/               # Icons, fonts

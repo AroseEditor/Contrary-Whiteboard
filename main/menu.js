@@ -141,6 +141,11 @@ function buildMenu(mainWindow) {
           label: 'Zoom 100%',
           click: () => mainWindow.webContents.send('menu-action', 'zoom-100')
         },
+        {
+          label: 'Reset View',
+          accelerator: 'Home',
+          click: () => mainWindow.webContents.send('menu-action', 'reset-view')
+        },
         { type: 'separator' },
         {
           label: 'Show Page Panel',

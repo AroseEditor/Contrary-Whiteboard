@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useCallback, useState } from 'react';
 import useDocumentStore from '../../store/documentStore';
 import useToolStore from '../../store/toolStore';
 import useUIStore from '../../store/uiStore';
+import useSettingsStore from '../../store/settingsStore';
 import { CoordinateSystem } from './CoordinateSystem';
 import { CanvasRenderer } from './CanvasRenderer';
 import { InputHandler } from './InputHandler';
@@ -17,7 +18,6 @@ import { LaserTool } from '../../tools/LaserTool';
 const coordSystem = new CoordinateSystem();
 const renderer = new CanvasRenderer();
 
-// Tool instances
 const tools = {
   pen: new PenTool(),
   highlighter: new HighlighterTool(),
@@ -38,7 +38,6 @@ export default function PageCanvas() {
   const rafRef = useRef(null);
   const [textOverlay, setTextOverlay] = useState(null);
 
-  // Store subscriptions
   const pages = useDocumentStore(s => s.pages);
   const currentPageId = useDocumentStore(s => s.currentPageId);
   const selectedObjectIds = useDocumentStore(s => s.selectedObjectIds);
@@ -46,10 +45,10 @@ export default function PageCanvas() {
   const zoom = useUIStore(s => s.zoom);
   const panOffset = useUIStore(s => s.panOffset);
   const showGrid = useUIStore(s => s.showGrid);
+  const stylusConfig = useSettingsStore(s => s.stylus);
 
   const currentPage = pages.find(p => p.id === currentPageId) || pages[0];
 
-  // Get active tool instance
   const getActiveTool = useCallback(() => {
     const tool = activeTool;
     if (tool === 'rectangle' || tool === 'ellipse' || tool === 'triangle') {
@@ -58,7 +57,6 @@ export default function PageCanvas() {
     return tools[tool] || tools.pen;
   }, [activeTool]);
 
-  // Resize canvas to fill container
   const resizeCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -66,14 +64,12 @@ export default function PageCanvas() {
     const dpr = window.devicePixelRatio || 1;
     const width = parent.clientWidth;
     const height = parent.clientHeight;
-
     canvas.width = width * dpr;
     canvas.height = height * dpr;
     canvas.style.width = width + 'px';
     canvas.style.height = height + 'px';
   }, []);
 
-  // Render frame
   const renderFrame = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas || !currentPage) return;
@@ -90,7 +86,6 @@ export default function PageCanvas() {
       selectionRect: tool.selectionRect || null
     });
 
-    // Tool-specific overlays
     if (activeTool === 'laser' && tool.points) {
       renderer.renderLaser(ctx, tool.points, coordSystem);
     }
@@ -100,7 +95,6 @@ export default function PageCanvas() {
       renderer.renderEraserCursor(ctx, tool.cursorPos, eraserSize, coordSystem);
     }
 
-    // Active drawing preview (pen stroke being drawn, shape being dragged, etc.)
     if (tool.previewObject) {
       coordSystem.applyTransform(ctx);
       renderer.renderObject(ctx, tool.previewObject);
@@ -123,7 +117,7 @@ export default function PageCanvas() {
     };
   }, [renderFrame]);
 
-  // Setup input handler
+  // Setup input handler with stylus support
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -134,7 +128,6 @@ export default function PageCanvas() {
         const context = getToolContext();
         tool.onPointerDown(pos, context);
 
-        // Text tool: show text overlay
         if (activeTool === 'text' && tool.showTextInput) {
           const screenPos = coordSystem.canvasToScreen(pos.x, pos.y);
           setTextOverlay({
@@ -159,33 +152,43 @@ export default function PageCanvas() {
         const state = useUIStore.getState();
         const oldZoom = state.zoom;
         const newZoom = Math.max(0.1, Math.min(20, oldZoom * delta));
-
-        // Zoom towards mouse position
         const newPanX = mouseX - (mouseX - state.panOffset.x) * (newZoom / oldZoom);
         const newPanY = mouseY - (mouseY - state.panOffset.y) * (newZoom / oldZoom);
-
-        useUIStore.setState({
-          zoom: newZoom,
-          panOffset: { x: newPanX, y: newPanY }
-        });
+        useUIStore.setState({ zoom: newZoom, panOffset: { x: newPanX, y: newPanY } });
       },
       onPan: (dx, dy) => {
         useUIStore.getState().pan(dx, dy);
       },
       onContextMenu: (pos, e) => {
         handleContextMenu(pos, e);
+      },
+      // Stylus callbacks
+      onStylusDetected: () => {
+        useSettingsStore.getState().setStylusDetected(true);
+        console.log('[Stylus] Pen input detected');
+      },
+      onStylusAction: (type, value) => {
+        if (type === 'switchTool') {
+          useToolStore.getState().setActiveTool(value);
+        } else if (type === 'undo') {
+          useDocumentStore.getState().undo();
+        }
+      },
+      getCurrentTool: () => {
+        return useToolStore.getState().activeTool;
       }
     });
 
+    // Feed stylus config from settings
+    inputHandler.setStylusConfig(stylusConfig);
     inputHandler.bind(canvas);
     inputHandlerRef.current = inputHandler;
 
     return () => {
       inputHandler.unbind();
     };
-  }, [activeTool, getActiveTool]);
+  }, [activeTool, getActiveTool, stylusConfig]);
 
-  // Tool context provider
   const getToolContext = useCallback(() => {
     return {
       store: useDocumentStore,
@@ -196,7 +199,6 @@ export default function PageCanvas() {
     };
   }, []);
 
-  // Right-click context menu
   const handleContextMenu = useCallback((pos, e) => {
     const docState = useDocumentStore.getState();
     const items = [];
@@ -223,14 +225,9 @@ export default function PageCanvas() {
       );
     }
 
-    useUIStore.getState().setContextMenu({
-      x: e.clientX,
-      y: e.clientY,
-      items
-    });
+    useUIStore.getState().setContextMenu({ x: e.clientX, y: e.clientY, items });
   }, []);
 
-  // Handle text overlay submit
   const handleTextSubmit = useCallback((text) => {
     if (!text || !textOverlay) {
       setTextOverlay(null);
@@ -263,7 +260,6 @@ export default function PageCanvas() {
     setTextOverlay(null);
   }, [textOverlay]);
 
-  // Resize on mount and window resize
   useEffect(() => {
     resizeCanvas();
     const handleResize = () => resizeCanvas();
@@ -271,7 +267,6 @@ export default function PageCanvas() {
     return () => window.removeEventListener('resize', handleResize);
   }, [resizeCanvas]);
 
-  // Drag and drop images
   const handleDrop = useCallback((e) => {
     e.preventDefault();
     const files = Array.from(e.dataTransfer.files);
