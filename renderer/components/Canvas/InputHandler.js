@@ -200,6 +200,26 @@ export class InputHandler {
       return;
     }
 
+    // Check geometry overlay interaction before tool
+    const overlays = window.__geometryOverlays;
+    if (overlays && e.button === 0) {
+      const pos = this.getCanvasPos(e);
+      // Rotation handle check first (higher priority)
+      const rotTarget = overlays.hitTestRotate(pos.x, pos.y);
+      if (rotTarget) {
+        this._overlayInteracting = true;
+        overlays.startRotate(rotTarget, pos.x, pos.y);
+        return;
+      }
+      // Body drag check
+      const dragTarget = overlays.hitTest(pos.x, pos.y);
+      if (dragTarget) {
+        this._overlayInteracting = true;
+        overlays.startDrag(dragTarget, pos.x, pos.y);
+        return;
+      }
+    }
+
     const pos = this.getCanvasPos(e);
     this.callbacks.onPointerDown?.(pos, e);
   };
@@ -215,6 +235,14 @@ export class InputHandler {
       return;
     }
 
+    // Geometry overlay drag/rotate
+    const overlays = window.__geometryOverlays;
+    if (overlays && this._overlayInteracting) {
+      const pos = this.getCanvasPos(e);
+      overlays.onMove(pos.x, pos.y);
+      return;
+    }
+
     const pos = this.getCanvasPos(e);
     this.callbacks.onPointerMove?.(pos, e);
   };
@@ -224,6 +252,14 @@ export class InputHandler {
       this.isPanning = false;
       this.lastPanPos = null;
       this.canvas.style.cursor = '';
+      return;
+    }
+
+    // Release geometry overlay interaction
+    const overlays = window.__geometryOverlays;
+    if (overlays && this._overlayInteracting) {
+      overlays.onUp();
+      this._overlayInteracting = false;
       return;
     }
 
