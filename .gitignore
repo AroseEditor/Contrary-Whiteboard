@@ -83,3 +83,9 @@ plugins/cffadaptor/objects
 .directory
 .DS_Store
 Doxyfile
+
+# Secrets / test keys #
+#######################
+*.pem
+*.srl
+thirdpartydeps/openssl/*/bin/PEM/
