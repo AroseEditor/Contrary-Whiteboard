@@ -19,7 +19,7 @@ env:
   APP_NAME: 'ContraryWhiteboard'
 
 # ============================================================
-# WINDOWS — MSVC + NSIS installer
+# WINDOWS — MSVC + NSIS installer YAY
 # ============================================================
 jobs:
   build-windows:
