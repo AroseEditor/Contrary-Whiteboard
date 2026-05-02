@@ -96,6 +96,6 @@ See [LICENSE](LICENSE) for full details.
 
 ## 👤 Author
 
-**AroseEditor** — [@iusem](https://github.com/iusem)
+**AroseEditor** — [@AroseEditor](https://github.com/AroseEditor)
 
 <sub>Contrary Whiteboard is a fork of [OpenBoard](https://github.com/OpenBoard-org/OpenBoard), originally developed by the Open Education Foundation and DIP-SEM.</sub>
