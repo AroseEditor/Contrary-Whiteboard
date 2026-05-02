@@ -45,6 +45,7 @@ else()
             )
             file(GLOB QUAZIP_SOURCES "${QUAZIP_THIRDPARTY}/quazip/*.cpp" "${QUAZIP_THIRDPARTY}/quazip/*.c")
             target_sources(${PROJECT_NAME} PRIVATE ${QUAZIP_SOURCES})
+            target_compile_definitions(${PROJECT_NAME} PRIVATE QUAZIP_STATIC)
         else()
             # Last resort: assume default system include directories
             message(STATUS "QuaZip not found, assuming default include directory /usr/include/quazip${QT_VERSION}")
