@@ -45,11 +45,9 @@ jobs:
       - name: Install Windows deps (zlib, ffmpeg, pkgconfig)
         shell: pwsh
         run: |
-          vcpkg install zlib:x64-windows ffmpeg:x64-windows
-          choco install pkgconfiglite -y --no-progress
+          vcpkg install zlib:x64-windows ffmpeg:x64-windows pkgconf:x64-windows
           echo "ZLIB_ROOT=C:\vcpkg\installed\x64-windows" >> $env:GITHUB_ENV
           echo "PKG_CONFIG_PATH=C:\vcpkg\installed\x64-windows\lib\pkgconfig" >> $env:GITHUB_ENV
-          echo "C:\ProgramData\chocolatey\lib\pkgconfiglite\tools" >> $env:GITHUB_PATH
 
       - name: Install Qt (with WebEngine)
         uses: jurplel/install-qt-action@v4
@@ -71,10 +69,12 @@ jobs:
         run: |
           cmake -S . -B build `
             -G "Visual Studio 17 2022" -A x64 `
+            -DCMAKE_TOOLCHAIN_FILE="C:\vcpkg\scripts\buildsystems\vcpkg.cmake" `
             -DCMAKE_PREFIX_PATH="$env:Qt6_DIR" `
             -DQT_VERSION=6 `
             -DCMAKE_BUILD_TYPE=Release `
-            -DZLIB_ROOT="$env:ZLIB_ROOT"
+            -DZLIB_ROOT="$env:ZLIB_ROOT" `
+            -DPKG_CONFIG_EXECUTABLE="C:\vcpkg\installed\x64-windows\tools\pkgconf\pkgconf.exe"
 
       - name: Build
         shell: pwsh
@@ -224,10 +224,11 @@ jobs:
           aqtversion: '==3.1.*'
 
       - name: Install deps
-        run: brew install poppler openssl@3 ffmpeg
+        run: brew install poppler openssl@3 ffmpeg pkg-config
 
       - name: Configure CMake
         run: |
+          export PKG_CONFIG_PATH="/opt/homebrew/lib/pkgconfig:/opt/homebrew/opt/openssl@3/lib/pkgconfig:/opt/homebrew/opt/ffmpeg/lib/pkgconfig:$PKG_CONFIG_PATH"
           cmake -S . -B build \
             -DCMAKE_PREFIX_PATH="$Qt6_DIR" \
             -DQT_VERSION=6 \
