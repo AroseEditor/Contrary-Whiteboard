@@ -58,6 +58,7 @@ Makefile.Sankore*
 ###############
 .qmake.stash
 build
+build_local
 install
 Makefile
 Makefile.Debug

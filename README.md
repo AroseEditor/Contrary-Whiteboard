@@ -46,8 +46,6 @@ Pre-built installers are available for all platforms:
 |----------|----------|
 | **Windows** (64-bit) | [ContraryWhiteboard-Setup.exe](https://github.com/AroseEditor/Contrary-Whiteboard/releases/latest) |
 | **macOS** (Universal) | [ContraryWhiteboard.dmg](https://github.com/AroseEditor/Contrary-Whiteboard/releases/latest) |
-| **Linux** (Debian/Ubuntu) | [contrarywhiteboard.deb](https://github.com/AroseEditor/Contrary-Whiteboard/releases/latest) |
-| **Linux** (AppImage) | [ContraryWhiteboard.AppImage](https://github.com/AroseEditor/Contrary-Whiteboard/releases/latest) |
 
 ## 🛠️ Building from Source
 

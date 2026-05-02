@@ -257,165 +257,10 @@ jobs:
           path: ContraryWhiteboard-*-macOS.dmg
 
 # ============================================================
-# Linux — DEB + AppImage
-# ============================================================
-  build-linux:
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - name: Read version
-        id: ver
-        run: |
-          MAJ=$(grep 'VERSION_MAJ'   version.txt | head -1 | cut -d= -f2 | tr -d ' \r')
-          MIN=$(grep 'VERSION_MIN'   version.txt | head -1 | cut -d= -f2 | tr -d ' \r')
-          PAT=$(grep 'VERSION_PATCH' version.txt | head -1 | cut -d= -f2 | tr -d ' \r')
-          TYP=$(grep 'VERSION_TYPE'  version.txt | head -1 | cut -d= -f2 | tr -d ' \r')
-          VER="$MAJ.$MIN.$PAT"
-          [ "$TYP" != "r" ] && VER="$VER-$TYP"
-          echo "version=$VER" >> $GITHUB_OUTPUT
-
-      - name: Install system deps
-        run: |
-          sudo apt-get update -q
-          sudo apt-get install -y \
-            build-essential cmake ninja-build \
-            libpoppler-dev libpoppler-cpp-dev \
-            libssl-dev libfreetype-dev \
-            zlib1g-dev \
-            libavcodec-dev libavformat-dev libavutil-dev \
-            libswresample-dev libswscale-dev \
-            libfontconfig-dev libasound2-dev \
-            libxkbcommon-dev libxkbcommon-x11-dev \
-            libgl1-mesa-dev libegl1-mesa-dev \
-            libxcb-xinerama0-dev libxcb-icccm4-dev \
-            libxcb-image0-dev libxcb-keysyms1-dev \
-            libxcb-randr0-dev libxcb-render-util0-dev \
-            libxcb-shape0-dev libxcb-sync-dev \
-            libxcb-xfixes0-dev libxcb-xkb-dev \
-            libdbus-1-dev libpulse-dev \
-            desktop-file-utils
-
-      # jurplel/install-qt-action uses aqt internally and both 3.1.x and 3.3.x
-      # fail to parse the Qt 6.8.x module XML on Linux. Call aqt directly with
-      # --base pointing to a mirror that serves the correct metadata.
-      - name: Install Qt (with WebEngine)
-        run: |
-          pip install "aqtinstall==3.1.*" --quiet
-          python -m aqt install-qt linux desktop ${{ env.QT_VERSION }} gcc_64 \
-            --outputdir $HOME/Qt \
-            --modules qtwebengine qtmultimedia qt5compat qtwebchannel qtpositioning \
-            --base https://mirrors.ocf.berkeley.edu/qt/
-          echo "Qt6_DIR=$HOME/Qt/${{ env.QT_VERSION }}/gcc_64" >> $GITHUB_ENV
-          echo "$HOME/Qt/${{ env.QT_VERSION }}/gcc_64/bin" >> $GITHUB_PATH
-          echo "LD_LIBRARY_PATH=$HOME/Qt/${{ env.QT_VERSION }}/gcc_64/lib" >> $GITHUB_ENV
-
-      - name: Configure CMake
-        run: |
-          cmake -S . -B build \
-            -G Ninja \
-            -DCMAKE_PREFIX_PATH="$Qt6_DIR" \
-            -DQT_VERSION=6 \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_INSTALL_PREFIX=/usr
-
-      - name: Build
-        run: cmake --build build --parallel $(nproc)
-
-      - name: Create DEB
-        env:
-          APP_VERSION: ${{ steps.ver.outputs.version }}
-        run: |
-          PKG="contrarywhiteboard_${APP_VERSION}_amd64"
-          mkdir -p $PKG/DEBIAN
-          mkdir -p $PKG/usr/bin
-          mkdir -p $PKG/usr/share/applications
-          mkdir -p $PKG/usr/share/icons/hicolor/256x256/apps
-          mkdir -p $PKG/usr/share/contrarywhiteboard
-
-          BIN=$(find build -maxdepth 2 -type f \( -name "contrarywhiteboard" -o -name "ContraryWhiteboard" \) | head -1)
-          [ -z "$BIN" ] && BIN=$(find build -maxdepth 3 -type f -executable ! -name "*.so" | grep -i contrary | head -1)
-          cp "$BIN" $PKG/usr/bin/contrarywhiteboard
-          chmod +x $PKG/usr/bin/contrarywhiteboard
-
-          for d in etc library fonts i18n customizations; do
-            [ -d "resources/$d" ] && cp -r "resources/$d" "$PKG/usr/share/contrarywhiteboard/"
-          done
-          cp resources/images/ContraryWhiteboard.png \
-            $PKG/usr/share/icons/hicolor/256x256/apps/contrarywhiteboard.png 2>/dev/null || true
-
-          printf '[Desktop Entry]\nName=Contrary Whiteboard\nComment=Interactive Whiteboard for Education\nExec=contrarywhiteboard %%f\nIcon=contrarywhiteboard\nTerminal=false\nType=Application\nCategories=Education;\nMimeType=application/vnd.mnemis-uniboard-document;\n' \
-            > $PKG/usr/share/applications/contrarywhiteboard.desktop
-
-          printf 'Package: contrarywhiteboard\nVersion: %s\nSection: education\nPriority: optional\nArchitecture: amd64\nDepends: libqt6core6 (>= 6.2), libqt6gui6, libqt6widgets6, libqt6network6, libqt6xml6, libqt6svg6, libssl3\nMaintainer: AroseEditor <https://github.com/AroseEditor>\nHomepage: https://github.com/AroseEditor/Contrary-Whiteboard\nDescription: Contrary Whiteboard - Interactive Whiteboard\n A cross-platform interactive whiteboard for education and presentations.\n' \
-            "${APP_VERSION}" > $PKG/DEBIAN/control
-
-          dpkg-deb --build --root-owner-group $PKG
-          mv ${PKG}.deb contrarywhiteboard_${APP_VERSION}_amd64.deb
-
-      - name: Create AppImage
-        env:
-          APP_VERSION: ${{ steps.ver.outputs.version }}
-        run: |
-          wget -q https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
-          wget -q https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage
-          chmod +x linuxdeploy*.AppImage
-
-          mkdir -p AppDir/usr/bin
-          mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
-          mkdir -p AppDir/usr/share/applications
-          mkdir -p AppDir/usr/share/contrarywhiteboard
-
-          BIN=$(find build -maxdepth 2 -type f \( -name "contrarywhiteboard" -o -name "ContraryWhiteboard" \) | head -1)
-          [ -z "$BIN" ] && BIN=$(find build -maxdepth 3 -type f -executable ! -name "*.so" | grep -i contrary | head -1)
-          cp "$BIN" AppDir/usr/bin/contrarywhiteboard
-          chmod +x AppDir/usr/bin/contrarywhiteboard
-
-          cp resources/images/ContraryWhiteboard.png \
-            AppDir/usr/share/icons/hicolor/256x256/apps/contrarywhiteboard.png 2>/dev/null || true
-          cp resources/images/ContraryWhiteboard.png \
-            AppDir/contrarywhiteboard.png 2>/dev/null || true
-
-          for d in etc library fonts i18n customizations; do
-            [ -d "resources/$d" ] && cp -r "resources/$d" "AppDir/usr/share/contrarywhiteboard/"
-          done
-
-          printf '[Desktop Entry]\nName=Contrary Whiteboard\nExec=contrarywhiteboard\nIcon=contrarywhiteboard\nType=Application\nCategories=Education;\n' \
-            > AppDir/contrarywhiteboard.desktop
-
-          export QMAKE="$Qt6_DIR/bin/qmake"
-          export LD_LIBRARY_PATH="$Qt6_DIR/lib:$LD_LIBRARY_PATH"
-          export OUTPUT="ContraryWhiteboard-$APP_VERSION-Linux-x86_64.AppImage"
-
-          ./linuxdeploy-x86_64.AppImage --appimage-extract-and-run \
-            --appdir AppDir \
-            --plugin qt \
-            --output appimage || true
-
-          find . -maxdepth 1 -name "*.AppImage" ! -name "linuxdeploy*" \
-            -exec mv {} "ContraryWhiteboard-$APP_VERSION-Linux-x86_64.AppImage" \; 2>/dev/null || true
-
-      - name: Upload DEB
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-deb
-          path: contrarywhiteboard_*_amd64.deb
-
-      - name: Upload AppImage
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-appimage
-          path: ContraryWhiteboard-*-Linux-x86_64.AppImage
-          if-no-files-found: ignore
-
-# ============================================================
 # Draft Release
 # ============================================================
   draft-release:
-    needs: [build-windows, build-macos, build-linux]
+    needs: [build-windows, build-macos]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
     steps:
@@ -458,8 +303,6 @@ jobs:
           |----------|------|
           | **Windows** | `ContraryWhiteboard-*-Setup-x64.exe` |
           | **macOS** | `ContraryWhiteboard-*-macOS.dmg` |
-          | **Linux (DEB)** | `contrarywhiteboard_*_amd64.deb` |
-          | **Linux (AppImage)** | `ContraryWhiteboard-*-Linux-x86_64.AppImage` |
 
           ---
           *Contrary Whiteboard is a fork of [OpenBoard](https://github.com/OpenBoard-org/OpenBoard)*
@@ -477,5 +320,3 @@ jobs:
           files: |
             release-artifacts/windows-installer/ContraryWhiteboard-*-Setup-x64.exe
             release-artifacts/macos-dmg/ContraryWhiteboard-*-macOS.dmg
-            release-artifacts/linux-deb/contrarywhiteboard_*_amd64.deb
-            release-artifacts/linux-appimage/ContraryWhiteboard-*-Linux-x86_64.AppImage
