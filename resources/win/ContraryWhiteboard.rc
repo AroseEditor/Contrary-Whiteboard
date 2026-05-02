@@ -2,8 +2,8 @@
 
 /* Application Icon */
 
-IDI_ICON1               ICON    DISCARDABLE     "OpenBoard.ico"
-IDI_ICON2               ICON    DISCARDABLE     "OpenBoardDoc.ico"
+IDI_ICON1               ICON    DISCARDABLE     "ContraryWhiteboard.ico"
+IDI_ICON2               ICON    DISCARDABLE     "ContraryWhiteboard.ico"
 
 /* Version Info */
 

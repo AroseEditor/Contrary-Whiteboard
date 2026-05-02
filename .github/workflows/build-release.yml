@@ -281,7 +281,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             libpoppler-dev libpoppler-cpp-dev \
-            libquazip1-qt6-dev \
             libssl-dev zlib1g-dev \
             libx11-dev libxext-dev \
             libopengl-dev libgl1-mesa-dev \
@@ -290,7 +289,12 @@ jobs:
             libdbus-1-dev \
             ffmpeg libavcodec-dev libavformat-dev libavutil-dev \
             libnss3 libxss1 libasound2 \
-            fuse libfuse2
+            fuse libfuse2 \
+            pkg-config
+          # Try to install quazip for Qt6, fall back gracefully
+          sudo apt-get install -y libquazip1-qt6-dev 2>/dev/null || \
+          sudo apt-get install -y libquazip-dev 2>/dev/null || \
+          echo "QuaZip not in repos, will build from thirdpartydeps"
 
       - name: Configure & Build
         run: |
