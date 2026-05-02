@@ -19,7 +19,7 @@ env:
   APP_NAME: 'ContraryWhiteboard'
 
 # ============================================================
-# WINDOWS — MSVC + NSIS installer YAY
+# WINDOWS — MSVC + NSIS installer
 # ============================================================
 jobs:
   build-windows:
@@ -42,6 +42,20 @@ jobs:
           if ($vtype -ne 'r') { $ver = "$ver-$vtype" }
           echo "version=$ver" >> $env:GITHUB_OUTPUT
 
+      # FIX: install zlib so CMake's find_package(ZLIB) resolves
+      - name: Install zlib (Windows)
+        shell: pwsh
+        run: |
+          choco install zlib -y --no-progress
+          # zlib from choco installs to C:\ProgramData\chocolatey\lib\zlib\tools
+          # expose it to CMake via env
+          $zlibRoot = "C:\ProgramData\chocolatey\lib\zlib\tools\zlib"
+          if (-not (Test-Path $zlibRoot)) {
+            # fallback: vcpkg path if choco layout differs
+            $zlibRoot = "C:\vcpkg\installed\x64-windows"
+          }
+          echo "ZLIB_ROOT=$zlibRoot" >> $env:GITHUB_ENV
+
       - name: Install Qt (with WebEngine)
         uses: jurplel/install-qt-action@v4
         with:
@@ -50,6 +64,8 @@ jobs:
           target: desktop
           arch: win64_msvc2022_64
           modules: qtwebengine qtmultimedia qt5compat qtwebchannel qtpositioning
+          # FIX: pin aqt to 3.1.x — 3.3.0 has XML parsing regression on 6.8.x
+          aqtversion: '==3.1.*'
 
       - name: Setup MSVC
         uses: ilammy/msvc-dev-cmd@v1
@@ -63,7 +79,8 @@ jobs:
             -G "Visual Studio 17 2022" -A x64 `
             -DCMAKE_PREFIX_PATH="$env:Qt6_DIR" `
             -DQT_VERSION=6 `
-            -DCMAKE_BUILD_TYPE=Release
+            -DCMAKE_BUILD_TYPE=Release `
+            -DZLIB_ROOT="$env:ZLIB_ROOT"
 
       - name: Build
         shell: pwsh
@@ -74,7 +91,6 @@ jobs:
         run: |
           New-Item -ItemType Directory -Path deploy -Force
 
-          # Find the exe
           $exe = Get-ChildItem -Path build -Recurse -Filter "*.exe" |
                  Where-Object { $_.Name -notmatch 'cmake|moc|rcc|uic|install' } |
                  Select-Object -First 1
@@ -87,14 +103,12 @@ jobs:
               --no-system-d3d-compiler --no-opengl-sw `
               deploy\ContraryWhiteboard.exe
 
-          # Resources
           foreach ($d in @('etc','library','fonts','customizations','i18n')) {
             if (Test-Path "resources/$d") {
               Copy-Item -Recurse "resources/$d" "deploy/$d"
             }
           }
 
-          # Third-party DLLs
           Get-ChildItem -Path thirdpartydeps -Recurse -Filter "*.dll" -ErrorAction SilentlyContinue |
             ForEach-Object { Copy-Item $_.FullName deploy\ -ErrorAction SilentlyContinue }
 
@@ -118,7 +132,7 @@ jobs:
           InstallDirRegKey HKLM "Software\ContraryWhiteboard" "InstallDir"
           RequestExecutionLevel admin
 
-          VIProductVersion "$env:APP_VERSION.0"
+          VIProductVersion "$($env:APP_VERSION -replace '-.*','').0"
           VIAddVersionKey "ProductName"     "Contrary Whiteboard"
           VIAddVersionKey "CompanyName"     "AroseEditor"
           VIAddVersionKey "LegalCopyright"  "(c) 2026 AroseEditor"
@@ -212,6 +226,8 @@ jobs:
           target: desktop
           arch: clang_64
           modules: qtwebengine qtmultimedia qt5compat qtwebchannel qtpositioning
+          # FIX: pin aqt to 3.1.x
+          aqtversion: '==3.1.*'
 
       - name: Install deps
         run: brew install poppler openssl@3
@@ -231,15 +247,12 @@ jobs:
         env:
           APP_VERSION: ${{ steps.ver.outputs.version }}
         run: |
-          # Find the .app bundle
-          APP=$(find build -name "*.app" | head -1)
+          APP=$(find build -name "*.app" -not -path "*/Qt*" -not -path "*/qt*" | head -1)
           [ -z "$APP" ] && echo "No .app found" && exit 1
           echo "Found: $APP"
 
-          # macdeployqt
           "$Qt6_DIR/bin/macdeployqt" "$APP" -dmg -always-overwrite
 
-          # Rename
           DMG_SRC="${APP%.app}.dmg"
           mv "$DMG_SRC" "ContraryWhiteboard-$APP_VERSION-macOS.dmg"
 
@@ -278,6 +291,7 @@ jobs:
             build-essential cmake ninja-build \
             libpoppler-dev libpoppler-cpp-dev \
             libssl-dev libfreetype-dev \
+            zlib1g-dev \
             libfontconfig-dev libasound2-dev \
             libxkbcommon-dev libxkbcommon-x11-dev \
             libgl1-mesa-dev libegl1-mesa-dev \
@@ -297,6 +311,8 @@ jobs:
           target: desktop
           arch: gcc_64
           modules: qtwebengine qtmultimedia qt5compat qtwebchannel qtpositioning
+          # FIX: pin aqt to 3.1.x — 3.3.0 breaks XML parsing for Qt 6.8.x module list
+          aqtversion: '==3.1.*'
 
       - name: Configure CMake
         run: |
@@ -321,45 +337,22 @@ jobs:
           mkdir -p $PKG/usr/share/icons/hicolor/256x256/apps
           mkdir -p $PKG/usr/share/contrarywhiteboard
 
-          # Binary
-          BIN=$(find build -maxdepth 2 -type f -name "contrarywhiteboard" -o -name "ContraryWhiteboard" | head -1)
+          BIN=$(find build -maxdepth 2 -type f \( -name "contrarywhiteboard" -o -name "ContraryWhiteboard" \) | head -1)
           [ -z "$BIN" ] && BIN=$(find build -maxdepth 3 -type f -executable ! -name "*.so" | grep -i contrary | head -1)
           cp "$BIN" $PKG/usr/bin/contrarywhiteboard
           chmod +x $PKG/usr/bin/contrarywhiteboard
 
-          # Resources
           for d in etc library fonts i18n customizations; do
             [ -d "resources/$d" ] && cp -r "resources/$d" "$PKG/usr/share/contrarywhiteboard/"
           done
           cp resources/images/ContraryWhiteboard.png \
             $PKG/usr/share/icons/hicolor/256x256/apps/contrarywhiteboard.png 2>/dev/null || true
 
-          # .desktop
-          cat > $PKG/usr/share/applications/contrarywhiteboard.desktop << 'EOF'
-          [Desktop Entry]
-          Name=Contrary Whiteboard
-          Comment=Interactive Whiteboard for Education
-          Exec=contrarywhiteboard %f
-          Icon=contrarywhiteboard
-          Terminal=false
-          Type=Application
-          Categories=Education;
-          MimeType=application/vnd.mnemis-uniboard-document;
-          EOF
+          printf '[Desktop Entry]\nName=Contrary Whiteboard\nComment=Interactive Whiteboard for Education\nExec=contrarywhiteboard %%f\nIcon=contrarywhiteboard\nTerminal=false\nType=Application\nCategories=Education;\nMimeType=application/vnd.mnemis-uniboard-document;\n' \
+            > $PKG/usr/share/applications/contrarywhiteboard.desktop
 
-          # control
-          cat > $PKG/DEBIAN/control << EOF
-          Package: contrarywhiteboard
-          Version: ${APP_VERSION}
-          Section: education
-          Priority: optional
-          Architecture: amd64
-          Depends: libqt6core6 (>= 6.2), libqt6gui6, libqt6widgets6, libqt6network6, libqt6xml6, libqt6svg6, libssl3
-          Maintainer: AroseEditor <https://github.com/AroseEditor>
-          Homepage: https://github.com/AroseEditor/Contrary-Whiteboard
-          Description: Contrary Whiteboard - Interactive Whiteboard
-           A cross-platform interactive whiteboard for education and presentations.
-          EOF
+          printf 'Package: contrarywhiteboard\nVersion: %s\nSection: education\nPriority: optional\nArchitecture: amd64\nDepends: libqt6core6 (>= 6.2), libqt6gui6, libqt6widgets6, libqt6network6, libqt6xml6, libqt6svg6, libssl3\nMaintainer: AroseEditor <https://github.com/AroseEditor>\nHomepage: https://github.com/AroseEditor/Contrary-Whiteboard\nDescription: Contrary Whiteboard - Interactive Whiteboard\n A cross-platform interactive whiteboard for education and presentations.\n' \
+            "${APP_VERSION}" > $PKG/DEBIAN/control
 
           dpkg-deb --build --root-owner-group $PKG
           mv ${PKG}.deb contrarywhiteboard_${APP_VERSION}_amd64.deb
@@ -368,7 +361,6 @@ jobs:
         env:
           APP_VERSION: ${{ steps.ver.outputs.version }}
         run: |
-          # linuxdeploy needs --appimage-extract-and-run in CI (no FUSE)
           wget -q https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
           wget -q https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage
           chmod +x linuxdeploy*.AppImage
@@ -378,7 +370,7 @@ jobs:
           mkdir -p AppDir/usr/share/applications
           mkdir -p AppDir/usr/share/contrarywhiteboard
 
-          BIN=$(find build -maxdepth 2 -type f -name "contrarywhiteboard" -o -name "ContraryWhiteboard" | head -1)
+          BIN=$(find build -maxdepth 2 -type f \( -name "contrarywhiteboard" -o -name "ContraryWhiteboard" \) | head -1)
           [ -z "$BIN" ] && BIN=$(find build -maxdepth 3 -type f -executable ! -name "*.so" | grep -i contrary | head -1)
           cp "$BIN" AppDir/usr/bin/contrarywhiteboard
           chmod +x AppDir/usr/bin/contrarywhiteboard
@@ -392,14 +384,8 @@ jobs:
             [ -d "resources/$d" ] && cp -r "resources/$d" "AppDir/usr/share/contrarywhiteboard/"
           done
 
-          cat > AppDir/contrarywhiteboard.desktop << 'EOF'
-          [Desktop Entry]
-          Name=Contrary Whiteboard
-          Exec=contrarywhiteboard
-          Icon=contrarywhiteboard
-          Type=Application
-          Categories=Education;
-          EOF
+          printf '[Desktop Entry]\nName=Contrary Whiteboard\nExec=contrarywhiteboard\nIcon=contrarywhiteboard\nType=Application\nCategories=Education;\n' \
+            > AppDir/contrarywhiteboard.desktop
 
           export QMAKE="$Qt6_DIR/bin/qmake"
           export LD_LIBRARY_PATH="$Qt6_DIR/lib:$LD_LIBRARY_PATH"
@@ -410,7 +396,6 @@ jobs:
             --plugin qt \
             --output appimage || true
 
-          # Rename whatever was produced
           find . -maxdepth 1 -name "*.AppImage" ! -name "linuxdeploy*" \
             -exec mv {} "ContraryWhiteboard-$APP_VERSION-Linux-x86_64.AppImage" \; 2>/dev/null || true
 
