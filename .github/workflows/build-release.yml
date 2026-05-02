@@ -38,7 +38,7 @@ jobs:
           host: 'windows'
           target: 'desktop'
           arch: 'win64_msvc2022_64'
-          modules: 'qtwebengine qtmultimedia qt5compat'
+          modules: 'qtwebengine qtmultimedia qt5compat qtwebchannel qtpositioning'
 
       - name: Setup MSVC
         uses: ilammy/msvc-dev-cmd@v1
@@ -216,7 +216,7 @@ jobs:
           host: 'mac'
           target: 'desktop'
           arch: 'clang_64'
-          modules: 'qtwebengine qtmultimedia qt5compat'
+          modules: 'qtwebengine qtmultimedia qt5compat qtwebchannel qtpositioning'
 
       - name: Install Dependencies
         run: |
@@ -274,7 +274,7 @@ jobs:
           host: 'linux'
           target: 'desktop'
           arch: 'linux_gcc_64'
-          modules: 'qtwebengine qtmultimedia qt5compat'
+          modules: 'qtwebengine qtmultimedia qt5compat qtwebchannel qtpositioning'
 
       - name: Install Dependencies
         run: |
