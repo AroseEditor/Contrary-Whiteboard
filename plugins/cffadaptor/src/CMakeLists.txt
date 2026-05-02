@@ -1,4 +1,4 @@
-target_sources(openboard PRIVATE
+target_sources(${PROJECT_NAME} PRIVATE
     UBCFFAdaptor.cpp
 )
 
