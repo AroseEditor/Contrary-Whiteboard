@@ -63,6 +63,7 @@ install
 Makefile
 Makefile.Debug
 Makefile.Release
+qt_local
 
 buildContext
 
