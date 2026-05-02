@@ -42,11 +42,14 @@ jobs:
           if ($vtype -ne 'r') { $ver = "$ver-$vtype" }
           echo "version=$ver" >> $env:GITHUB_OUTPUT
 
-      - name: Install zlib (Windows)
+      - name: Install Windows deps (zlib, ffmpeg, pkgconfig)
         shell: pwsh
         run: |
-          vcpkg install zlib:x64-windows
+          vcpkg install zlib:x64-windows ffmpeg:x64-windows
+          choco install pkgconfiglite -y --no-progress
           echo "ZLIB_ROOT=C:\vcpkg\installed\x64-windows" >> $env:GITHUB_ENV
+          echo "PKG_CONFIG_PATH=C:\vcpkg\installed\x64-windows\lib\pkgconfig" >> $env:GITHUB_ENV
+          echo "C:\ProgramData\chocolatey\lib\pkgconfiglite\tools" >> $env:GITHUB_PATH
 
       - name: Install Qt (with WebEngine)
         uses: jurplel/install-qt-action@v4
@@ -56,7 +59,6 @@ jobs:
           target: desktop
           arch: win64_msvc2022_64
           modules: qtwebengine qtmultimedia qt5compat qtwebchannel qtpositioning
-          # FIX: pin aqt to 3.1.x — 3.3.0 has XML parsing regression on 6.8.x
           aqtversion: '==3.1.*'
 
       - name: Setup MSVC
@@ -222,7 +224,7 @@ jobs:
           aqtversion: '==3.1.*'
 
       - name: Install deps
-        run: brew install poppler openssl@3
+        run: brew install poppler openssl@3 ffmpeg
 
       - name: Configure CMake
         run: |
@@ -284,6 +286,8 @@ jobs:
             libpoppler-dev libpoppler-cpp-dev \
             libssl-dev libfreetype-dev \
             zlib1g-dev \
+            libavcodec-dev libavformat-dev libavutil-dev \
+            libswresample-dev libswscale-dev \
             libfontconfig-dev libasound2-dev \
             libxkbcommon-dev libxkbcommon-x11-dev \
             libgl1-mesa-dev libegl1-mesa-dev \
@@ -295,16 +299,19 @@ jobs:
             libdbus-1-dev libpulse-dev \
             desktop-file-utils
 
+      # jurplel/install-qt-action uses aqt internally and both 3.1.x and 3.3.x
+      # fail to parse the Qt 6.8.x module XML on Linux. Call aqt directly with
+      # --base pointing to a mirror that serves the correct metadata.
       - name: Install Qt (with WebEngine)
-        uses: jurplel/install-qt-action@v4
-        with:
-          version: ${{ env.QT_VERSION }}
-          host: linux
-          target: desktop
-          arch: gcc_64
-          modules: qtwebengine qtmultimedia qt5compat qtwebchannel qtpositioning
-          # FIX: pin aqt to 3.1.x — 3.3.0 breaks XML parsing for Qt 6.8.x module list
-          aqtversion: '==3.1.*'
+        run: |
+          pip install "aqtinstall==3.1.*" --quiet
+          python -m aqt install-qt linux desktop ${{ env.QT_VERSION }} gcc_64 \
+            --outputdir $HOME/Qt \
+            --modules qtwebengine qtmultimedia qt5compat qtwebchannel qtpositioning \
+            --base https://mirrors.ocf.berkeley.edu/qt/
+          echo "Qt6_DIR=$HOME/Qt/${{ env.QT_VERSION }}/gcc_64" >> $GITHUB_ENV
+          echo "$HOME/Qt/${{ env.QT_VERSION }}/gcc_64/bin" >> $GITHUB_PATH
+          echo "LD_LIBRARY_PATH=$HOME/Qt/${{ env.QT_VERSION }}/gcc_64/lib" >> $GITHUB_ENV
 
       - name: Configure CMake
         run: |
