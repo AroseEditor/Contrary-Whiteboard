@@ -42,19 +42,11 @@ jobs:
           if ($vtype -ne 'r') { $ver = "$ver-$vtype" }
           echo "version=$ver" >> $env:GITHUB_OUTPUT
 
-      # FIX: install zlib so CMake's find_package(ZLIB) resolves
       - name: Install zlib (Windows)
         shell: pwsh
         run: |
-          choco install zlib -y --no-progress
-          # zlib from choco installs to C:\ProgramData\chocolatey\lib\zlib\tools
-          # expose it to CMake via env
-          $zlibRoot = "C:\ProgramData\chocolatey\lib\zlib\tools\zlib"
-          if (-not (Test-Path $zlibRoot)) {
-            # fallback: vcpkg path if choco layout differs
-            $zlibRoot = "C:\vcpkg\installed\x64-windows"
-          }
-          echo "ZLIB_ROOT=$zlibRoot" >> $env:GITHUB_ENV
+          vcpkg install zlib:x64-windows
+          echo "ZLIB_ROOT=C:\vcpkg\installed\x64-windows" >> $env:GITHUB_ENV
 
       - name: Install Qt (with WebEngine)
         uses: jurplel/install-qt-action@v4
