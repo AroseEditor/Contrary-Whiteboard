@@ -1,5 +1,6 @@
 #include "UBThemeManager.h"
 #include <QStyleFactory>
+#include <QStyle>
 
 void UBThemeManager::applyTheme(const QString& theme)
 {
