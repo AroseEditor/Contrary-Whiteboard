@@ -404,6 +404,6 @@
         <file>images/moveTool.svg</file>
     </qresource>
     <qresource prefix="/web">
-        <file>web/whiteboard.html</file>
+        <file alias="whiteboard.html">web/whiteboard.html</file>
     </qresource>
 </RCC>
