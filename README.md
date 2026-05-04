@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="resources/images/ContraryWhiteboard.png" alt="Contrary Whiteboard" width="140" />
+  <img src="icon.png" alt="icon.png" width="140" />
 </p>
 
 <h1 align="center">Contrary Whiteboard</h1>
