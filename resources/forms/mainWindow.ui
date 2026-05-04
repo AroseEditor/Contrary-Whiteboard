@@ -649,7 +649,6 @@
     <string>Add Bookmark</string>
    </property>
   </action>
-  </action>
   <action name="actionHostWhiteboard">
    <property name="checkable">
     <bool>true</bool>
