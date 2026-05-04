@@ -47,6 +47,11 @@
 #include "podcast/UBPodcastController.h"
 
 #include "ui_preferences.h"
+#include "gui/UBThemeManager.h"
+
+#include <QComboBox>
+#include <QHBoxLayout>
+#include <QLabel>
 
 #include "core/memcheck.h"
 
@@ -85,6 +90,28 @@ UBPreferencesController::UBPreferencesController(QWidget *parent)
     mPreferencesWindow = new UBPreferencesDialog(this,parent, Qt::Dialog);
     mPreferencesUI = new Ui::preferencesDialog();  // deleted in destructor
     mPreferencesUI->setupUi(mPreferencesWindow);
+
+    // --- Theme row injected at the top of the dialog ---
+    mThemeCombo = new QComboBox(mPreferencesWindow);
+    mThemeCombo->setObjectName("themeComboBox");
+    mThemeCombo->addItems({tr("Light"), tr("Dark")});
+    mThemeCombo->setMinimumWidth(120);
+
+    QLabel* themeLabel = new QLabel(tr("Application Theme:"), mPreferencesWindow);
+    themeLabel->setBuddy(mThemeCombo);
+
+    QHBoxLayout* themeRow = new QHBoxLayout();
+    themeRow->setContentsMargins(8, 6, 8, 6);
+    themeRow->addWidget(themeLabel);
+    themeRow->addWidget(mThemeCombo);
+    themeRow->addStretch();
+
+    // Insert the theme row at the very top of the dialog's root layout
+    QVBoxLayout* rootLayout = qobject_cast<QVBoxLayout*>(mPreferencesWindow->layout());
+    if (rootLayout)
+        rootLayout->insertLayout(0, themeRow);
+    // ---------------------------------------------------
+
     adjustScreensPreferences();
 
     connect(UBApplication::displayManager, &UBDisplayManager::availableScreenCountChanged, this, &UBPreferencesController::adjustScreensPreferences);
@@ -293,6 +320,13 @@ void UBPreferencesController::wire()
 
     // about tab
     connect(mPreferencesUI->checkSoftwareUpdateAtLaunchCheckBox, SIGNAL(clicked(bool)), settings->appEnableAutomaticSoftwareUpdates, SLOT(setBool(bool)));
+
+    // Theme combo
+    connect(mThemeCombo, qOverload<int>(&QComboBox::currentIndexChanged), this, [](int index) {
+        QString theme = (index == 1) ? "Dark" : "Light";
+        UBSettings::settings()->appTheme->set(theme);
+        UBThemeManager::applyTheme(theme);
+    });
 }
 
 void UBPreferencesController::init()
@@ -334,6 +368,12 @@ void UBPreferencesController::init()
     mPreferencesUI->toolbarDisplayTextCheckBox->setChecked(settings->appToolBarDisplayText->get().toBool());
     mPreferencesUI->verticalChoice->setChecked(settings->appToolBarOrientationVertical->get().toBool());
     mPreferencesUI->horizontalChoice->setChecked(!settings->appToolBarOrientationVertical->get().toBool());
+
+    // Restore saved theme in the combo without re-triggering the signal
+    {
+        QSignalBlocker blocker(mThemeCombo);
+        mThemeCombo->setCurrentIndex(settings->appTheme->get().toString() == "Dark" ? 1 : 0);
+    }
 
     // pen tab
     mPenProperties->fineSlider->setValue(settings->boardPenFineWidth->get().toDouble() * sSliderRatio);

@@ -270,6 +270,7 @@ void UBSettings::init()
 
     appStartMode = new UBSetting(this, "App", "StartMode", "");
     appRunInWindow = new UBSetting(this, "App", "RunInWindow", false);
+    appTheme = new UBSetting(this, "App", "Theme", "Light");
 
     featureSliderPosition = new UBSetting(this, "Board", "FeatureSliderPosition", 40);
 

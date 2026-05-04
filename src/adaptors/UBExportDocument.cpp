@@ -62,7 +62,7 @@ UBExportDocument::~UBExportDocument()
 
 void UBExportDocument::persist(std::shared_ptr<UBDocumentProxy> pDocumentProxy)
 {
-    persistLocally(pDocumentProxy, tr("Export as UBZ File"));
+    persistLocally(pDocumentProxy, tr("Export as CWB File"));
 }
 
 
@@ -108,12 +108,12 @@ void UBExportDocument::processing(const QString& pObjectName, int pCurrent, int 
 
 QString UBExportDocument::exportExtention()
 {
-    return QString(".ubz");
+    return QString(".cwb");
 }
 
 QString UBExportDocument::exportName()
 {
-    return tr("Export to OpenBoard Format");
+    return tr("Export to Contrary Whiteboard Format");
 }
 
 bool UBExportDocument::associatedActionactionAvailableFor(const QModelIndex &selectedIndex)

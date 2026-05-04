@@ -48,3 +48,12 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: de
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall
+
+[Registry]
+; .cwb file association
+Root: HKA; Subkey: "Software\Classes\.cwb"; ValueType: string; ValueName: ""; ValueData: "ContraryWhiteboardFile"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\ContraryWhiteboardFile"; ValueType: string; ValueName: ""; ValueData: "Contrary Whiteboard Document"; Flags: uninsdeletekey
+Root: HKA; Subkey: "Software\Classes\ContraryWhiteboardFile\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\{#MyAppExeName},0"
+Root: HKA; Subkey: "Software\Classes\ContraryWhiteboardFile\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+; Legacy .ubz association
+Root: HKA; Subkey: "Software\Classes\.ubz"; ValueType: string; ValueName: ""; ValueData: "ContraryWhiteboardFile"; Flags: uninsdeletevalue

@@ -403,4 +403,7 @@
         <file>images/toolbar/tip.png</file>
         <file>images/moveTool.svg</file>
     </qresource>
+    <qresource prefix="/web">
+        <file>web/whiteboard.html</file>
+    </qresource>
 </RCC>

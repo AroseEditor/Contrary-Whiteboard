@@ -264,6 +264,7 @@ class UBSettings : public QObject
         UBSetting* appToolBarOrientationVertical;
         UBSetting* appPreferredLanguage;
         UBSetting* appRunInWindow;
+        UBSetting* appTheme; // "Light" or "Dark"
 
         UBSetting* appIsInSoftwareUpdateProcess;
 

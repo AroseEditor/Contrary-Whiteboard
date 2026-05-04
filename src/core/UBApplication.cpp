@@ -62,6 +62,8 @@
 #include "gui/UBStartupHintsPalette.h"
 
 #include "ui_mainWindow.h"
+#include "gui/UBThemeManager.h"
+#include "sharing/UBSharingController.h"
 
 #include "frameworks/UBCryptoUtils.h"
 #include "tools/UBToolsManager.h"
@@ -312,6 +314,9 @@ int UBApplication::exec(const QString& pFileToImport)
 
     displayManager = new UBDisplayManager(staticMemoryCleaner);
 
+    // Apply saved theme before creating the main window
+    UBThemeManager::applyTheme(UBSettings::settings()->appTheme->get().toString());
+
     if (UBSettings::settings()->appRunInWindow->get().toBool()) {
         mainWindow = new UBMainWindow(0,
                 Qt::Window |
@@ -384,6 +389,19 @@ int UBApplication::exec(const QString& pFileToImport)
 
     connect(mainWindow->actionPreferences, SIGNAL(triggered()), mPreferencesController, SLOT(show()));
     connect(mainWindow->actionCheckUpdate, SIGNAL(triggered()), applicationController, SLOT(checkUpdateRequest()));
+
+    // Host Whiteboard feature
+    UBSharingController* sharingCtrl = new UBSharingController(this);
+    connect(mainWindow->actionHostWhiteboard, &QAction::triggered, sharingCtrl, &UBSharingController::toggleHosting);
+    connect(sharingCtrl, &UBSharingController::hostingStarted, mainWindow, [](const QString&) {
+        UBApplication::mainWindow->actionHostWhiteboard->setChecked(true);
+    });
+    connect(sharingCtrl, &UBSharingController::hostingStopped, mainWindow, []() {
+        UBApplication::mainWindow->actionHostWhiteboard->setChecked(false);
+    });
+    connect(sharingCtrl, &UBSharingController::statusMessage, this, [](const QString& msg) {
+        UBApplication::showMessage(msg);
+    });
 
 
     toolBarPositionChanged(UBSettings::settings()->appToolBarPositionedAtTop->get());

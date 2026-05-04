@@ -39,6 +39,7 @@ QT += webenginewidgets
 QT += printsupport
 QT += core
 QT += concurrent
+QT += websockets
 greaterThan(QT_MAJOR_VERSION, 5): win32: QT += core5compat
 greaterThan(QT_MAJOR_VERSION, 5): macx: QT += core5compat
 linux: QT += dbus
@@ -60,6 +61,7 @@ include(src/tools/tools.pri)
 include(src/desktop/desktop.pri)
 include(src/web/web.pri)
 include(src/singleapplication/singleapplication.pri)
+include(src/sharing/sharing.pri)
 DEFINES += QAPPLICATION_CLASS=QApplication
 
 DEPENDPATH += src/pdf-merger

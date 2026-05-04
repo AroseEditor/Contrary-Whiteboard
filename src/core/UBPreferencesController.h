@@ -33,6 +33,7 @@
 #include <QtGui>
 #include <QDialog>
 #include <QLineEdit>
+#include <QComboBox>
 
 class UBColorPicker;
 class UBApplication;
@@ -87,6 +88,7 @@ class UBPreferencesController : public QObject
         UBColorPicker* mDarkBackgroundGridColorPicker;
         UBColorPicker* mLightBackgroundGridColorPicker;
         QString mScreenConfigurationPath;
+        QComboBox* mThemeCombo;
 
     protected slots:
 

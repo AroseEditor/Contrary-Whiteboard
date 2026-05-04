@@ -78,6 +78,7 @@
    <addaction name="separator"/>
    <addaction name="actionErase"/>
    <addaction name="separator"/>
+   <addaction name="actionHostWhiteboard"/>
    <addaction name="actionBoard"/>
    <addaction name="actionWeb"/>
    <addaction name="actionDocument"/>
@@ -646,6 +647,27 @@
    </property>
    <property name="toolTip">
     <string>Add Bookmark</string>
+   </property>
+  </action>
+  </action>
+  <action name="actionHostWhiteboard">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../OpenBoard.qrc">
+     <normaloff>:/images/toolbar/board.png</normaloff>:/images/toolbar/board.png</iconset>
+   </property>
+   <property name="text">
+    <string>Host</string>
+   </property>
+   <property name="toolTip">
+    <string>Host Whiteboard (share via link)</string>
+   </property>
+   <property name="font">
+    <font>
+     <pointsize>9</pointsize>
+    </font>
    </property>
   </action>
   <action name="actionBoard">

@@ -64,13 +64,14 @@ UBImportDocument::~UBImportDocument()
 
 QStringList UBImportDocument::supportedExtentions()
 {
-    return QStringList("ubz");
+    // Accept both new .cwb format and legacy .ubz files
+    return QStringList() << "cwb" << "ubz";
 }
 
 
 QString UBImportDocument::importFileFilter()
 {
-    return tr("OpenBoard (*.ubz)");
+    return tr("Contrary Whiteboard (*.cwb *.ubz)");
 }
 
 
