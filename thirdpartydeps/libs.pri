@@ -38,8 +38,23 @@ win32 {
         SUB_LIB = "win32/release"
     }
 
-    # Libraries are now handled by build_windows_classic.bat for CI
-    # and should be manually added for local builds to ensure version parity.
+    # Libraries are now handled by local thirdpartydeps
+    
+    # OPENSSL
+    INCLUDEPATH += "$$PWD/openssl/openssl-3.0.15-win64/include"
+    LIBS += "-L$$PWD/openssl/openssl-3.0.15-win64/lib" -llibcrypto -llibssl
+
+    # POPPLER
+    POPPLER_DIR = "$$PWD/poppler"
+    INCLUDEPATH += "$$POPPLER_DIR/include"
+    INCLUDEPATH += "$$POPPLER_DIR/include/poppler"
+    LIBS += "-L$$POPPLER_DIR/lib" -lpoppler -lpoppler-cpp
+
+    # QUAZIP (freshly built in CI)
+    QUAZIP_DIR = "$$PWD/quazip"
+    exists("$$QUAZIP_DIR/lib/$$SUB_LIB/quazip.lib") {
+         LIBS += "-L$$QUAZIP_DIR/lib/$$SUB_LIB" -lquazip
+    }
 
     # Common Windows system libs
     LIBS += -lWmvcore -lWinmm -lUser32 -lGdi32 -lAdvApi32 -lOle32 -lStrmiids
