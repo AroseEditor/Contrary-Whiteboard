@@ -33,7 +33,19 @@ set PATH=%QT_ROOT%\bin;%PATH%
 :: 2. Run qmake
 echo [2/5] Running qmake...
 if exist build\win32 rmdir /s /q build\win32
-qmake ContraryWhiteboard.pro -spec win32-msvc "CONFIG+=release"
+
+:: Inject vcpkg paths into qmake
+set "VCPKG_INC=%VCPKG_ROOT%\installed\x64-windows\include"
+set "VCPKG_LIB=%VCPKG_ROOT%\installed\x64-windows\lib"
+
+qmake ContraryWhiteboard.pro -spec win32-msvc "CONFIG+=release" ^
+    "INCLUDEPATH+=%VCPKG_INC%" ^
+    "LIBS+=-L%VCPKG_LIB%" ^
+    "LIBS+=-lquazip1-qt6" ^
+    "LIBS+=-lpoppler-cpp" ^
+    "LIBS+=-llibcrypto" ^
+    "LIBS+=-llibssl"
+
 if %ERRORLEVEL% neq 0 exit /b %ERRORLEVEL%
 
 :: 3. Build with nmake
@@ -56,7 +68,14 @@ xcopy /Y "resources\i18n\*.qm" "%PRODUCT_DIR%\i18n\"
 
 :: 5. Create Installer
 echo [5/5] Compiling Inno Setup installer...
-iscc installer\ContraryWhiteboard.iss
+set "ISCC_EXE=iscc"
+if not exist "%ISCC_EXE%" (
+    if exist "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" (
+        set "ISCC_EXE=C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+    )
+)
+
+"%ISCC_EXE%" installer\ContraryWhiteboard.iss
 if %ERRORLEVEL% neq 0 exit /b %ERRORLEVEL%
 
 echo Done! Installer created in the root directory.

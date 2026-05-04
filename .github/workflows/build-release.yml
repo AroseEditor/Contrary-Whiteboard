@@ -49,6 +49,11 @@ jobs:
         with:
           arch: x64
 
+      - name: Install vcpkg dependencies
+        run: |
+          vcpkg install quazip:x64-windows poppler:x64-windows openssl:x64-windows ffmpeg:x64-windows
+        shell: bash
+
       - name: Run Classic Build Script
         shell: cmd
         run: build_windows_classic.bat

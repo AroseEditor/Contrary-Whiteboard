@@ -39,7 +39,7 @@ macx:{
     QMAKE_POST_LINK += bash postScript_mac.sh "$$DESTDIR" "$$SANKORE_DIR/$$BUILD_DIR/product/Open-Sankore.app/Contents/MacOS"
 }
 
-LIBS     += "-L$$THIRD_PARTY_PATH/quazip/lib/$$SUB_DIR" "-lquazip"
+# LIBS handled by main project or libs.pri
 
 QT       += xml xmlpatterns core
 QT       += gui

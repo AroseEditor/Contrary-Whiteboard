@@ -38,28 +38,16 @@ win32 {
         SUB_LIB = "win32/release"
     }
 
-    QUAZIP_DIR   = "$$PWD/quazip"
-    LIBS        += "-L$$QUAZIP_DIR/lib/$$SUB_LIB" "-lquazip"
-    INCLUDEPATH += "$$PWD/zlib/1.2.11/include"
-
-    INCLUDEPATH += "$$PWD/openssl/openssl-3.0.15-win64/include"
-    QMAKE_LIBDIR += "$$PWD/openssl/openssl-3.0.15-win64/lib"
-
-    #POPPLER
-    POPPLER_DIR  = "$$PWD/poppler"
-    INCLUDEPATH += "$$POPPLER_DIR/include"
-    INCLUDEPATH += "$$POPPLER_DIR/include/poppler"
-    CONFIG( debug, debug|release ) {
-        LIBS        += "-L$$POPPLER_DIR/debug/lib" "-lpoppler"
-    } else {
-        LIBS        += "-L$$POPPLER_DIR/lib" "-lpoppler"
+    # Only use thirdpartydeps fallback if not already provided
+    !contains(LIBS, .*quazip.*) {
+        QUAZIP_DIR = "$$PWD/quazip"
+        exists("$$QUAZIP_DIR/lib/$$SUB_LIB/quazip.lib") {
+             LIBS += "-L$$QUAZIP_DIR/lib/$$SUB_LIB" -lquazip
+        }
     }
 
-    LIBS += -llibssl
-    LIBS += -llibcrypto
-
-    LIBS += -lWmvcore
-    LIBS += -lWinmm
+    # Common Windows system libs
+    LIBS += -lWmvcore -lWinmm -lUser32 -lGdi32 -lAdvApi32 -lOle32 -lStrmiids
 }
 
 macx {
