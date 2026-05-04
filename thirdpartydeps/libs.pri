@@ -38,13 +38,8 @@ win32 {
         SUB_LIB = "win32/release"
     }
 
-    # Only use thirdpartydeps fallback if not already provided
-    !contains(LIBS, .*quazip.*) {
-        QUAZIP_DIR = "$$PWD/quazip"
-        exists("$$QUAZIP_DIR/lib/$$SUB_LIB/quazip.lib") {
-             LIBS += "-L$$QUAZIP_DIR/lib/$$SUB_LIB" -lquazip
-        }
-    }
+    # Libraries are now handled by build_windows_classic.bat for CI
+    # and should be manually added for local builds to ensure version parity.
 
     # Common Windows system libs
     LIBS += -lWmvcore -lWinmm -lUser32 -lGdi32 -lAdvApi32 -lOle32 -lStrmiids
