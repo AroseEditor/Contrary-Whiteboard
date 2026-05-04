@@ -155,5 +155,5 @@ jobs:
           draft: true
           prerelease: false
           files: |
-            release-artifacts/windows-installer/ContraryWhiteboard-*-setup.exe
-            release-artifacts/macos-dmg/ContraryWhiteboard-*-macOS.dmg
+            release-artifacts/ContraryWhiteboard-*-setup.exe
+            release-artifacts/ContraryWhiteboard-*-macOS.dmg

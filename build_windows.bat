@@ -51,6 +51,20 @@ if not exist "%QT_ROOT%\bin\qmake.exe" (
     echo [2/6] Using existing Qt at %QT_ROOT%
 )
 
+:: Detect Qt root reliably
+if defined Qt6_DIR (
+    :: Qt6_DIR is usually path/to/lib/cmake/Qt6
+    set "QT_ROOT=%Qt6_DIR%\..\..\.."
+    for %%i in ("%QT_ROOT%") do set "QT_ROOT=%%~fi"
+)
+
+if not exist "%QT_ROOT%\bin\windeployqt.exe" (
+    echo [ERROR] could not find windeployqt.exe in %QT_ROOT%\bin
+    :: Fallback search if the above fails
+    if exist "C:\Qt\6.8.3\msvc2022_64" set "QT_ROOT=C:\Qt\6.8.3\msvc2022_64"
+)
+echo Using Qt from: %QT_ROOT%
+
 :: Ensure SerialPort is installed (it was missing in previous runs)
 if not exist "%QT_ROOT%\bin\Qt6SerialPort.dll" (
     echo [2/6] Adding missing QtSerialPort module...
