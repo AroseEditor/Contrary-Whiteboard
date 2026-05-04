@@ -1,5 +1,5 @@
 TEMPLATE = lib
-CONFIG  += staticlib debug_and_release
+CONFIG  += staticlib release
 
 # You'll need to define this one manually if using a build system other
 # than qmake or using QuaZIP sources directly in your project.

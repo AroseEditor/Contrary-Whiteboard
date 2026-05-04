@@ -49,10 +49,14 @@ jobs:
         with:
           arch: x64
 
-      - name: Install vcpkg dependencies
+      - name: Build Third-Party Dependencies
+        shell: cmd
         run: |
-          vcpkg install quazip:x64-windows poppler:x64-windows openssl:x64-windows ffmpeg:x64-windows
-        shell: bash
+          echo "Building QuaZip..."
+          cd thirdpartydeps\quazip
+          qmake quazip.pro -spec win32-msvc "CONFIG+=release"
+          nmake
+          cd ..\..
 
       - name: Run Classic Build Script
         shell: cmd

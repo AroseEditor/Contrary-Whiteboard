@@ -34,17 +34,11 @@ set PATH=%QT_ROOT%\bin;%PATH%
 echo [2/5] Running qmake...
 if exist build\win32 rmdir /s /q build\win32
 
-:: Inject vcpkg paths into qmake
-set "VCPKG_INC=%VCPKG_ROOT%\installed\x64-windows\include"
-set "VCPKG_LIB=%VCPKG_ROOT%\installed\x64-windows\lib"
+:: We will use the local thirdpartydeps folder
+set "DEP_PATH=%CD%\thirdpartydeps"
 
-qmake ContraryWhiteboard.pro -spec win32-msvc "CONFIG+=release" ^
-    "INCLUDEPATH+=%VCPKG_INC%" ^
-    "LIBS+=-L%VCPKG_LIB%" ^
-    "LIBS+=-lquazip1-qt6" ^
-    "LIBS+=-lpoppler-cpp" ^
-    "LIBS+=-llibcrypto" ^
-    "LIBS+=-llibssl"
+:: Force qmake to use our local dependency paths
+qmake ContraryWhiteboard.pro -spec win32-msvc "CONFIG+=release"
 
 if %ERRORLEVEL% neq 0 exit /b %ERRORLEVEL%
 
