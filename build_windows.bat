@@ -78,21 +78,26 @@ if %ERRORLEVEL% equ 0 (
 if %ERRORLEVEL% neq 0 exit /b 1
 
 :: 4. Configure & Build
-echo [4/6] Configuring and Building...
-if exist build rmdir /s /q build
+:: 4. Build with CMake
+echo [4/6] Configuring and building with CMake...
 
-:: If VCPKG_ROOT is still not found, try to guess it from the exe path
-if not exist "%VCPKG_ROOT%\scripts\buildsystems\vcpkg.cmake" (
-    echo [WARNING] vcpkg.cmake not found at %VCPKG_ROOT%. Checking common locations...
-    if exist "C:\vcpkg\scripts\buildsystems\vcpkg.cmake" set "VCPKG_ROOT=C:\vcpkg"
-)
+:: Set Pkg-Config paths for FFmpeg/vcpkg
+set "PKG_CONFIG_PATH=%VCPKG_ROOT%\installed\x64-windows\lib\pkgconfig"
+set "PKG_CONFIG_EXECUTABLE=%VCPKG_ROOT%\installed\x64-windows\tools\pkgconf\pkgconf.exe"
 
 cmake -S . -B build ^
     -DCMAKE_TOOLCHAIN_FILE="%VCPKG_ROOT%\scripts\buildsystems\vcpkg.cmake" ^
     -DCMAKE_PREFIX_PATH="%QT_ROOT%" ^
     -DQT_VERSION=6 ^
     -DCMAKE_BUILD_TYPE=Release ^
-    -DPKG_CONFIG_EXECUTABLE="%VCPKG_ROOT%\installed\x64-windows\tools\pkgconf\pkgconf.exe"
+    -DOPENSSL_ROOT_DIR="%VCPKG_ROOT%\installed\x64-windows" ^
+    -DPKG_CONFIG_EXECUTABLE="%PKG_CONFIG_EXECUTABLE%" ^
+    -DENV{PKG_CONFIG_PATH}="%PKG_CONFIG_PATH%"
+
+if %ERRORLEVEL% neq 0 (
+    echo CMake configuration failed.
+    exit /b %ERRORLEVEL%
+)
 
 cmake --build build --config Release --parallel
 if %ERRORLEVEL% neq 0 exit /b 1

@@ -99,7 +99,7 @@ jobs:
   # Draft Release
   # ============================================================
   draft-release:
-    needs: [build-windows, build-macos]
+    needs: [build-windows]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
     steps:
@@ -108,9 +108,17 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Download all artifacts
+      - name: Download Windows Artifact
         uses: actions/download-artifact@v4
         with:
+          name: windows-installer
+          path: release-artifacts
+
+      - name: Download macOS Artifact (Optional)
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: macos-dmg
           path: release-artifacts
 
       - name: Determine version tag
