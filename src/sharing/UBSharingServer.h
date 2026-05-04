@@ -6,18 +6,10 @@
 #include <QWebSocket>
 #include <QTcpServer>
 #include <QTcpSocket>
-#include <QHash>
 #include <QJsonObject>
 #include <QList>
 #include <QImage>
 
-// Single-port HTTP + WebSocket server.
-//   GET /board  → serves whiteboard.html
-//   GET /ws     → WebSocket upgrade (handled inline)
-//
-// ngrok only needs to tunnel ONE port.
-// The page JS connects to ws[s]://<ngrok-host>/ws
-// which ngrok forwards to our local /ws handler.
 class UBSharingServer : public QObject
 {
     Q_OBJECT
@@ -25,34 +17,35 @@ public:
     explicit UBSharingServer(QObject* parent = nullptr);
     ~UBSharingServer();
 
-    bool start(quint16 preferredPort = 8080);
+    bool start(quint16 port = 8080);
     void stop();
     quint16 port() const { return m_port; }
-    bool isRunning() const { return m_tcpServer != nullptr && m_tcpServer->isListening(); }
-    int clientCount() const { return m_wsClients.size(); }
+    bool isRunning() const { return m_tcpServer && m_tcpServer->isListening(); }
+    int clientCount() const { return m_clients.size(); }
 
-    void broadcast(const QJsonObject& event, QWebSocket* exclude = nullptr);
-    void sendInitSnapshot(QWebSocket* client, const QImage& snapshot);
+    void broadcast(const QJsonObject& ev, QWebSocket* exclude = nullptr);
+    void sendTo(QWebSocket* client, const QJsonObject& ev);
 
 signals:
-    void clientConnected(int totalClients);
-    void clientDisconnected(int totalClients);
-    void eventFromClient(const QJsonObject& event);
+    void clientConnected(int total);
+    void clientDisconnected(int total);
+    void eventFromClient(const QJsonObject& ev, QWebSocket* sender);
+    void newGuest(QWebSocket* client);   // emitted on first 'hello' from a guest
 
 private slots:
-    void onNewConnection();
+    void onNewTcpConnection();
+    void onWsConnected();
     void onWsMessage(const QString& msg);
-    void onWsClientDisconnected();
+    void onWsDisconnected();
 
 private:
-    void handleTcpData(QTcpSocket* socket);
+    void routeTcpSocket(QTcpSocket* socket);
     void serveHtml(QTcpSocket* socket);
 
-    // The QWebSocketServer in "off-the-network" mode accepts raw QTcpSocket
-    QTcpServer*        m_tcpServer  = nullptr;
-    QWebSocketServer*  m_wsServer   = nullptr;
-    QList<QWebSocket*> m_wsClients;
+    QTcpServer*        m_tcpServer = nullptr;
+    QWebSocketServer*  m_wsServer  = nullptr;
+    QList<QWebSocket*> m_clients;
     quint16 m_port = 0;
 };
 
-#endif // UBSHARINGSERVER_H
+#endif

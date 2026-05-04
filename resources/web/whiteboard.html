@@ -8,15 +8,10 @@
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: #1a1a2e; color: #eee; font-family: 'Inter', system-ui, sans-serif; overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
 
-  /* ── Toolbar ── */
   #toolbar {
     display: flex; align-items: center; gap: 8px;
-    padding: 6px 12px;
-    background: rgba(30,30,60,0.95);
-    border-bottom: 1px solid #333;
-    z-index: 100;
-    flex-shrink: 0;
-    flex-wrap: wrap;
+    padding: 6px 12px; background: rgba(30,30,60,0.97);
+    border-bottom: 1px solid #333; z-index: 100; flex-shrink: 0; flex-wrap: wrap;
   }
   .tool-btn {
     display: flex; flex-direction: column; align-items: center;
@@ -32,34 +27,24 @@
 
   #colorPicker { width: 32px; height: 32px; border-radius: 50%; border: 2px solid #555; cursor: pointer; background: none; padding: 0; }
   #sizeRange { width: 80px; accent-color: #4285f4; }
-  #statusBar {
-    margin-left: auto; font-size: 11px; color: #aaa;
-    display: flex; align-items: center; gap: 8px;
-  }
+  #statusBar { margin-left: auto; font-size: 11px; color: #aaa; display: flex; align-items: center; gap: 8px; }
   #connDot { width: 8px; height: 8px; border-radius: 50%; background: #f44; display: inline-block; }
   #connDot.connected { background: #4f4; }
   .sep { width: 1px; height: 24px; background: #444; margin: 0 4px; }
 
-  /* ── Canvas area ── */
-  #canvasWrap {
-    flex: 1; position: relative; overflow: hidden; touch-action: none;
-  }
+  #canvasWrap { flex: 1; position: relative; overflow: hidden; touch-action: none; }
   canvas { position: absolute; top: 0; left: 0; display: block; }
-  #bgCanvas  { z-index: 0; }   /* host snapshot */
-  #drawCanvas{ z-index: 1; }   /* strokes */
-  #curCanvas { z-index: 2; pointer-events: none; }  /* cursors */
+  #bgCanvas  { z-index: 0; background: #fff; }
+  #drawCanvas{ z-index: 1; }
+  #curCanvas { z-index: 2; pointer-events: none; }
 
-  /* ── Toast / status ── */
   #toast {
     position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
     background: rgba(30,30,60,0.92); border: 1px solid #4285f4;
     border-radius: 12px; padding: 10px 22px; font-size: 13px;
-    pointer-events: none; opacity: 0; transition: opacity 0.3s;
-    z-index: 999;
+    pointer-events: none; opacity: 0; transition: opacity 0.3s; z-index: 999;
   }
   #toast.show { opacity: 1; }
-
-  /* ── Follow indicator ── */
   #followBadge {
     display: none; position: fixed; top: 60px; right: 16px;
     background: rgba(66,133,244,0.8); border-radius: 20px;
@@ -70,39 +55,23 @@
 <body>
 
 <div id="toolbar">
-  <!-- Draw -->
   <button class="tool-btn active" id="btn-draw" title="Draw (D)" onclick="setTool('draw')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
-    Draw
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>Draw
   </button>
-  <!-- Erase -->
   <button class="tool-btn" id="btn-erase" title="Erase (E)" onclick="setTool('erase')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 20H7L3 16l10-10 7 7-3.5 3.5"/><path d="M6.0001 17.9999L17 7"/></svg>
-    Erase
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 20H7L3 16l10-10 7 7-3.5 3.5"/><path d="M6 18L17 7"/></svg>Erase
   </button>
-  <!-- Text -->
   <button class="tool-btn" id="btn-text" title="Text (T)" onclick="setTool('text')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
-    Text
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>Text
   </button>
-
   <div class="sep"></div>
-
-  <!-- Color -->
-  <input type="color" id="colorPicker" value="#ffffff" title="Stroke colour">
-  <!-- Size -->
+  <input type="color" id="colorPicker" value="#2563eb" title="Stroke colour">
   <input type="range" id="sizeRange" min="1" max="40" value="4" title="Brush size">
-
   <div class="sep"></div>
-
-  <!-- Clear my strokes -->
   <button class="tool-btn" title="Clear my strokes" onclick="clearMyStrokes()">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
-    Clear
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>Clear
   </button>
-
   <div class="sep"></div>
-
   <div id="statusBar">
     <span id="connDot"></span>
     <span id="statusTxt">Connecting…</span>
@@ -120,23 +89,22 @@
 
 <script>
 // ─────────────────────────────────────────────────────────────────────────────
-// State
+// Identity & state
 // ─────────────────────────────────────────────────────────────────────────────
-const ME = 'guest-' + Math.random().toString(36).slice(2, 7);
-const COLORS = ['#e74c3c','#3498db','#2ecc71','#f39c12','#9b59b6','#1abc9c','#e67e22'];
+const ME       = 'guest-' + Math.random().toString(36).slice(2, 7);
+const COLORS   = ['#e74c3c','#3498db','#2ecc71','#f39c12','#9b59b6','#1abc9c'];
 const MY_COLOR = COLORS[Math.floor(Math.random() * COLORS.length)];
 
-let tool = 'draw';
-let drawing = false;
+let tool = 'draw', drawing = false;
 let lastX = 0, lastY = 0;
-let panX = 0, panY = 0;
-let scale = 1;
-let isPanning = false;
-let panStartX = 0, panStartY = 0;
+let panX = 0, panY = 0, scale = 1;
+let isPanning = false, panStartX = 0, panStartY = 0;
 let followHost = false;
 let ws = null;
-let peers = {};   // id → { x, y, color, name }
-let myStrokes = [];  // list of stroke objects for undo
+let peers = {};
+
+// Scene coordinate space sent by host on init
+let sceneW = 1920, sceneH = 1080, sceneX = 0, sceneY = 0;
 
 const bgCanvas   = document.getElementById('bgCanvas');
 const drawCanvas = document.getElementById('drawCanvas');
@@ -152,12 +120,22 @@ const wrap       = document.getElementById('canvasWrap');
 function resizeCanvases() {
   const w = wrap.clientWidth, h = wrap.clientHeight;
   [bgCanvas, drawCanvas, curCanvas].forEach(c => { c.width = w; c.height = h; });
+  fitScene();
 }
 window.addEventListener('resize', resizeCanvases);
 resizeCanvases();
 
+// Fit the scene to the viewport (called after init)
+function fitScene() {
+  if (!sceneW || !sceneH) return;
+  const vw = bgCanvas.width, vh = bgCanvas.height;
+  scale = Math.min(vw / sceneW, vh / sceneH) * 0.95;
+  panX = (vw - sceneW * scale) / 2;
+  panY = (vh - sceneH * scale) / 2;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
-// Tool selection
+// Tool
 // ─────────────────────────────────────────────────────────────────────────────
 function setTool(t) {
   tool = t;
@@ -172,30 +150,31 @@ document.addEventListener('keydown', e => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Coordinate helpers (pan + scale transform)
+// Coordinate helpers — canvas pixels ↔ scene (Qt) coords
 // ─────────────────────────────────────────────────────────────────────────────
-function toWorld(cx, cy) {
-  return { x: (cx - panX) / scale, y: (cy - panY) / scale };
+function toScene(cx, cy) {
+  // canvas pixel → scene coord
+  return { x: (cx - panX) / scale + sceneX, y: (cy - panY) / scale + sceneY };
 }
-function toCanvas(wx, wy) {
-  return { x: wx * scale + panX, y: wy * scale + panY };
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Drawing
-// ─────────────────────────────────────────────────────────────────────────────
-function applyTransform(ctx) {
-  ctx.setTransform(scale, 0, 0, scale, panX, panY);
+function toCanvas(sx, sy) {
+  // scene coord → canvas pixel
+  return { x: (sx - sceneX) * scale + panX, y: (sy - sceneY) * scale + panY };
 }
 
-function drawLine(ctx, x1, y1, x2, y2, color, width, composite) {
+// ─────────────────────────────────────────────────────────────────────────────
+// Drawing helpers
+// ─────────────────────────────────────────────────────────────────────────────
+function applySceneTransform(ctx) {
+  ctx.setTransform(scale, 0, 0, scale, panX - sceneX * scale, panY - sceneY * scale);
+}
+
+function drawLine(ctx, x1, y1, x2, y2, color, width) {
   ctx.save();
-  applyTransform(ctx);
+  applySceneTransform(ctx);
   ctx.strokeStyle = color;
-  ctx.lineWidth = width;
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-  ctx.globalCompositeOperation = composite || 'source-over';
+  ctx.lineWidth   = width;
+  ctx.lineCap     = 'round';
+  ctx.lineJoin    = 'round';
   ctx.beginPath();
   ctx.moveTo(x1, y1);
   ctx.lineTo(x2, y2);
@@ -205,7 +184,7 @@ function drawLine(ctx, x1, y1, x2, y2, color, width, composite) {
 
 function eraseAt(ctx, x, y, radius) {
   ctx.save();
-  applyTransform(ctx);
+  applySceneTransform(ctx);
   ctx.globalCompositeOperation = 'destination-out';
   ctx.beginPath();
   ctx.arc(x, y, radius, 0, Math.PI * 2);
@@ -215,7 +194,7 @@ function eraseAt(ctx, x, y, radius) {
 
 function drawText(ctx, x, y, text, color, size) {
   ctx.save();
-  applyTransform(ctx);
+  applySceneTransform(ctx);
   ctx.fillStyle = color;
   ctx.font = `${size || 18}px Inter, sans-serif`;
   ctx.fillText(text, x, y);
@@ -223,109 +202,135 @@ function drawText(ctx, x, y, text, color, size) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Event from server → apply to drawCanvas
+// Redraw background snapshot with current transform
+// ─────────────────────────────────────────────────────────────────────────────
+let bgImage = null;
+function redrawBg() {
+  bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
+  if (!bgImage) return;
+  bgCtx.save();
+  applySceneTransform(bgCtx);
+  bgCtx.drawImage(bgImage, sceneX, sceneY, sceneW, sceneH);
+  bgCtx.restore();
+}
+
+function loadSnapshot(b64) {
+  const img = new Image();
+  img.onload = () => {
+    bgImage = img;
+    redrawBg();
+  };
+  img.src = 'data:image/jpeg;base64,' + b64;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Apply events from server
 // ─────────────────────────────────────────────────────────────────────────────
 function applyEvent(ev) {
-  if (ev.type === 'draw') {
-    drawLine(drawCtx, ev.x, ev.y, ev.x2, ev.y2, ev.color || '#fff', ev.width || 3);
-  } else if (ev.type === 'erase') {
-    eraseAt(drawCtx, ev.x, ev.y, ev.radius || 20);
-  } else if (ev.type === 'text') {
-    drawText(drawCtx, ev.x, ev.y, ev.content, ev.color || '#fff', ev.size);
-  } else if (ev.type === 'cursor') {
-    peers[ev.id] = { x: ev.x, y: ev.y, color: ev.color || '#f90', name: ev.id };
-    renderCursors();
-  } else if (ev.type === 'viewport') {
-    if (followHost) {
-      panX = ev.x; panY = ev.y; scale = ev.scale;
-      redrawAll();
-    }
-  } else if (ev.type === 'init') {
-    // Load the host's current canvas as background
-    const img = new Image();
-    img.onload = () => {
-      bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
-      bgCtx.drawImage(img, 0, 0, bgCanvas.width, bgCanvas.height);
-    };
-    img.src = 'data:image/png;base64,' + ev.canvas;
-  } else if (ev.type === 'clear') {
-    drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+  switch (ev.type) {
+    case 'init':
+      // Set scene coordinate space from host
+      if (ev.sceneW) { sceneW = ev.sceneW; sceneH = ev.sceneH; sceneX = ev.sceneX || 0; sceneY = ev.sceneY || 0; }
+      fitScene();
+      loadSnapshot(ev.canvas);
+      break;
+
+    case 'snapshot':
+      // Continuous update of host canvas
+      loadSnapshot(ev.data);
+      break;
+
+    case 'draw':
+      drawLine(drawCtx, ev.x, ev.y, ev.x2, ev.y2, ev.color || '#fff', ev.width || 3);
+      break;
+
+    case 'erase':
+      eraseAt(drawCtx, ev.x, ev.y, ev.radius || 20);
+      break;
+
+    case 'text':
+      drawText(drawCtx, ev.x, ev.y, ev.content, ev.color || '#fff', ev.size);
+      break;
+
+    case 'cursor':
+      peers[ev.id] = { x: ev.x, y: ev.y, color: ev.color || '#f90', name: ev.id };
+      renderCursors();
+      break;
+
+    case 'viewport':
+      if (followHost) {
+        // host sends scene-space pan/scale
+        panX = ev.x; panY = ev.y; scale = ev.scale;
+        redrawBg();
+      }
+      break;
+
+    case 'clear':
+      drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+      break;
   }
 }
 
-function redrawAll() {
-  // Redraw bg with transform (for pan/zoom of snapshot)
-  bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
-  // draw canvas is already in world coords, just re-render all strokes
-  // (simplified: for a full implementation, store stroke list and replay)
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
-// Cursor rendering
+// Cursor overlay
 // ─────────────────────────────────────────────────────────────────────────────
 function renderCursors() {
   curCtx.clearRect(0, 0, curCanvas.width, curCanvas.height);
   for (const id in peers) {
-    const p = peers[id];
-    const cp = toCanvas(p.x, p.y);
+    const p   = peers[id];
+    const cp  = toCanvas(p.x, p.y);
     curCtx.save();
     curCtx.beginPath();
     curCtx.arc(cp.x, cp.y, 7, 0, Math.PI * 2);
-    curCtx.fillStyle = p.color;
+    curCtx.fillStyle   = p.color;
     curCtx.fill();
     curCtx.strokeStyle = '#fff';
-    curCtx.lineWidth = 1.5;
+    curCtx.lineWidth   = 1.5;
     curCtx.stroke();
-    curCtx.fillStyle = '#fff';
-    curCtx.font = '11px Inter, sans-serif';
+    curCtx.fillStyle   = '#fff';
+    curCtx.font        = 'bold 11px Inter, sans-serif';
     curCtx.fillText(id, cp.x + 10, cp.y + 4);
     curCtx.restore();
   }
 }
 
-// Throttled cursor broadcast
 let lastCursorSend = 0;
-function broadcastCursor(wx, wy) {
+function broadcastCursor(sx, sy) {
   const now = Date.now();
   if (now - lastCursorSend < 50) return;
   lastCursorSend = now;
-  send({ type: 'cursor', x: wx, y: wy, id: ME, color: MY_COLOR });
+  send({ type: 'cursor', x: sx, y: sy, id: ME, color: MY_COLOR });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Pointer / Touch input
+// Input
 // ─────────────────────────────────────────────────────────────────────────────
-function getPos(e) {
+function getCanvasPos(e) {
   const r = drawCanvas.getBoundingClientRect();
-  if (e.touches) {
-    return { x: e.touches[0].clientX - r.left, y: e.touches[0].clientY - r.top };
-  }
+  if (e.touches) return { x: e.touches[0].clientX - r.left, y: e.touches[0].clientY - r.top };
   return { x: e.clientX - r.left, y: e.clientY - r.top };
 }
 
 function onPointerDown(e) {
-  // Middle-click or two-finger tap = pan
   if (e.button === 1 || (e.touches && e.touches.length === 2)) {
     isPanning = true;
-    const pos = getPos(e);
-    panStartX = pos.x - panX;
-    panStartY = pos.y - panY;
+    const pos = getCanvasPos(e);
+    panStartX = pos.x - panX; panStartY = pos.y - panY;
     followHost = false;
     document.getElementById('followBadge').style.display = 'none';
     return;
   }
   e.preventDefault();
   drawing = true;
-  const pos = getPos(e);
-  const w = toWorld(pos.x, pos.y);
-  lastX = w.x; lastY = w.y;
+  const cp = getCanvasPos(e);
+  const sp = toScene(cp.x, cp.y);
+  lastX = sp.x; lastY = sp.y;
 
   if (tool === 'text') {
     const txt = prompt('Enter text:');
     if (txt) {
-      drawText(drawCtx, w.x, w.y, txt, document.getElementById('colorPicker').value, 18);
-      send({ type: 'text', x: w.x, y: w.y, content: txt,
-             color: document.getElementById('colorPicker').value, size: 18 });
+      drawText(drawCtx, sp.x, sp.y, txt, document.getElementById('colorPicker').value, 18);
+      send({ type: 'text', x: sp.x, y: sp.y, content: txt, color: document.getElementById('colorPicker').value, size: 18 });
     }
     drawing = false;
   }
@@ -333,42 +338,37 @@ function onPointerDown(e) {
 
 function onPointerMove(e) {
   e.preventDefault();
-  const pos = getPos(e);
+  const cp = getCanvasPos(e);
 
   if (isPanning) {
-    panX = pos.x - panStartX;
-    panY = pos.y - panStartY;
-    redrawAll();
+    panX = cp.x - panStartX; panY = cp.y - panStartY;
+    redrawBg();
     return;
   }
 
-  const w = toWorld(pos.x, pos.y);
-  broadcastCursor(w.x, w.y);
-
+  const sp = toScene(cp.x, cp.y);
+  broadcastCursor(sp.x, sp.y);
   if (!drawing) return;
 
   const color = document.getElementById('colorPicker').value;
   const size  = parseInt(document.getElementById('sizeRange').value);
 
   if (tool === 'draw') {
-    drawLine(drawCtx, lastX, lastY, w.x, w.y, color, size);
-    send({ type: 'draw', x: lastX, y: lastY, x2: w.x, y2: w.y, color, width: size });
+    drawLine(drawCtx, lastX, lastY, sp.x, sp.y, color, size);
+    send({ type: 'draw', x: lastX, y: lastY, x2: sp.x, y2: sp.y, color, width: size });
   } else if (tool === 'erase') {
-    eraseAt(drawCtx, w.x, w.y, size * 3);
-    send({ type: 'erase', x: w.x, y: w.y, radius: size * 3 });
+    eraseAt(drawCtx, sp.x, sp.y, size * 3);
+    send({ type: 'erase', x: sp.x, y: sp.y, radius: size * 3 });
   }
 
-  lastX = w.x; lastY = w.y;
+  lastX = sp.x; lastY = sp.y;
 }
 
-function onPointerUp(e) {
-  drawing = false;
-  isPanning = false;
-}
+function onPointerUp() { drawing = false; isPanning = false; }
 
-// Pinch-to-zoom for mobile
+// Pinch zoom
 let initDist = 0;
-function getTouchDist(e) {
+function touchDist(e) {
   const dx = e.touches[0].clientX - e.touches[1].clientX;
   const dy = e.touches[0].clientY - e.touches[1].clientY;
   return Math.hypot(dx, dy);
@@ -380,19 +380,24 @@ drawCanvas.addEventListener('pointerup',    onPointerUp);
 drawCanvas.addEventListener('pointercancel',onPointerUp);
 drawCanvas.addEventListener('contextmenu',  e => e.preventDefault());
 
-// Touch events for pinch zoom
 drawCanvas.addEventListener('touchstart', e => {
-  if (e.touches.length === 2) { initDist = getTouchDist(e); }
+  if (e.touches.length === 2) initDist = touchDist(e);
   onPointerDown(e);
 }, { passive: false });
 
 drawCanvas.addEventListener('touchmove', e => {
   if (e.touches.length === 2) {
-    const dist = getTouchDist(e);
-    const delta = dist / initDist;
-    initDist = dist;
-    scale = Math.max(0.2, Math.min(5, scale * delta));
-    redrawAll();
+    const d = touchDist(e);
+    const center = {
+      x: (e.touches[0].clientX + e.touches[1].clientX) / 2 - bgCanvas.getBoundingClientRect().left,
+      y: (e.touches[0].clientY + e.touches[1].clientY) / 2 - bgCanvas.getBoundingClientRect().top
+    };
+    const factor = d / initDist;
+    initDist = d;
+    panX = center.x - (center.x - panX) * factor;
+    panY = center.y - (center.y - panY) * factor;
+    scale = Math.max(0.1, Math.min(8, scale * factor));
+    redrawBg();
     return;
   }
   onPointerMove(e);
@@ -400,16 +405,22 @@ drawCanvas.addEventListener('touchmove', e => {
 
 drawCanvas.addEventListener('touchend', onPointerUp);
 
-// Mouse wheel zoom
 drawCanvas.addEventListener('wheel', e => {
   e.preventDefault();
-  const pos = getPos(e);
+  const pos = getCanvasPos(e);
   const factor = e.deltaY > 0 ? 0.9 : 1.1;
-  scale = Math.max(0.2, Math.min(5, scale * factor));
+  scale = Math.max(0.1, Math.min(8, scale * factor));
   panX = pos.x - (pos.x - panX) * factor;
   panY = pos.y - (pos.y - panY) * factor;
-  redrawAll();
+  redrawBg();
 }, { passive: false });
+
+// Double-tap to follow host
+drawCanvas.addEventListener('dblclick', () => {
+  followHost = !followHost;
+  document.getElementById('followBadge').style.display = followHost ? 'block' : 'none';
+  toast(followHost ? 'Following host view' : 'Stopped following host');
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Clear my strokes
@@ -427,64 +438,39 @@ function send(obj) {
     ws.send(JSON.stringify(obj));
 }
 
-function toast(msg, duration = 3000) {
+function toast(msg, dur = 3000) {
   const el = document.getElementById('toast');
   el.textContent = msg;
   el.classList.add('show');
-  clearTimeout(el._timer);
-  el._timer = setTimeout(() => el.classList.remove('show'), duration);
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), dur);
 }
 
-function setStatus(connected) {
-  document.getElementById('connDot').className = connected ? 'connected' : '';
-  document.getElementById('statusTxt').textContent = connected ? 'Connected' : 'Disconnected';
+function setStatus(ok) {
+  document.getElementById('connDot').className = ok ? 'connected' : '';
+  document.getElementById('statusTxt').textContent = ok ? 'Connected' : 'Disconnected';
 }
 
 function connect() {
-  // Determine WebSocket URL from current page origin
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const wsUrl = proto + '//' + location.host + '/ws';
-
-  ws = new WebSocket(wsUrl);
+  ws = new WebSocket(proto + '//' + location.host + '/ws');
 
   ws.onopen = () => {
     setStatus(true);
     toast('Connected to whiteboard session!');
-    // Ask for initial snapshot
     send({ type: 'hello', id: ME, color: MY_COLOR });
   };
-
   ws.onclose = () => {
     setStatus(false);
     toast('Disconnected. Reconnecting in 3s…');
     setTimeout(connect, 3000);
   };
-
-  ws.onerror = err => {
-    console.error('WS error', err);
-  };
-
-  ws.onmessage = msg => {
-    try {
-      const ev = JSON.parse(msg.data);
-      applyEvent(ev);
-    } catch(e) { console.error(e); }
-  };
+  ws.onerror  = err => console.error('WS error', err);
+  ws.onmessage = msg => { try { applyEvent(JSON.parse(msg.data)); } catch(e) { console.error(e); } };
 }
 
-// Double-tap to follow host
-drawCanvas.addEventListener('dblclick', () => {
-  followHost = !followHost;
-  const badge = document.getElementById('followBadge');
-  badge.style.display = followHost ? 'block' : 'none';
-  toast(followHost ? 'Following host view' : 'Stopped following host');
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Boot
-// ─────────────────────────────────────────────────────────────────────────────
 connect();
-toast('Welcome! Draw, erase, or add text. Double-tap to follow host.', 5000);
+toast('Welcome! D=Draw E=Erase T=Text | Double-tap to follow host', 6000);
 </script>
 </body>
 </html>
