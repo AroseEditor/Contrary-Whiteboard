@@ -41,7 +41,7 @@ jobs:
           host: windows
           target: desktop
           arch: win64_msvc2022_64
-          modules: qtwebengine qtmultimedia qt5compat qtwebchannel qtpositioning qtserialport
+          modules: qtwebengine qtmultimedia qt5compat qtwebchannel qtpositioning qtserialport qtwebsockets
           aqtversion: '==3.1.*'
 
       - name: Setup MSVC
@@ -91,7 +91,7 @@ jobs:
           host: mac
           target: desktop
           arch: clang_64
-          modules: qtwebengine qtmultimedia qt5compat qtwebchannel qtpositioning qtserialport
+          modules: qtwebengine qtmultimedia qt5compat qtwebchannel qtpositioning qtserialport qtwebsockets
           aqtversion: '==3.1.*'
 
       - name: Install deps
