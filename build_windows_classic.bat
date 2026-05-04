@@ -60,6 +60,13 @@ xcopy /E /Y /I "resources\fonts" "%PRODUCT_DIR%\fonts"
 mkdir "%PRODUCT_DIR%\i18n"
 xcopy /Y "resources\i18n\*.qm" "%PRODUCT_DIR%\i18n\"
 
+:: Copy Third-Party DLLs
+echo Copying Third-Party DLLs...
+xcopy /Y "thirdpartydeps\poppler\bin\*.dll" "%PRODUCT_DIR%\"
+xcopy /Y "thirdpartydeps\zlib\1.2.11\bin\*.dll" "%PRODUCT_DIR%\"
+xcopy /Y "thirdpartydeps\openssl\openssl-3.0.15-win64\bin\*.dll" "%PRODUCT_DIR%\"
+xcopy /Y "thirdpartydeps\quazip\lib\win32\release\*.dll" "%PRODUCT_DIR%\" 2>nul
+
 :: 5. Create Installer
 echo [5/5] Compiling Inno Setup installer...
 set "ISCC_EXE=iscc"
