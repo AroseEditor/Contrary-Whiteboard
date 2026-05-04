@@ -105,14 +105,6 @@ endif()
 # Note: the executable is using lowercase on all platforms
 # ==========================================================================
 
-# manage dependencies
-include(cmake/DependencyQt.cmake)
-include(cmake/DependencyOpenSSL.cmake)
-include(cmake/DependencyPoppler.cmake)
-include(cmake/DependencyZlib.cmake)
-include(cmake/DependencyQuaZip.cmake)
-include(cmake/DependencyFFmpeg.cmake)
-
 # Fix inconsistent DLL linkage globally
 add_definitions(-DQUAZIP_STATIC -DUBCFFADAPTOR_STATIC)
 
@@ -132,6 +124,14 @@ if(APPLE)
 else()
     add_executable(${PROJECT_NAME})
 endif()
+
+# manage dependencies (MUST BE AFTER add_executable)
+include(cmake/DependencyQt.cmake)
+include(cmake/DependencyOpenSSL.cmake)
+include(cmake/DependencyPoppler.cmake)
+include(cmake/DependencyZlib.cmake)
+include(cmake/DependencyQuaZip.cmake)
+include(cmake/DependencyFFmpeg.cmake)
 
 # add source path to include directories
 target_include_directories(${PROJECT_NAME} PRIVATE
