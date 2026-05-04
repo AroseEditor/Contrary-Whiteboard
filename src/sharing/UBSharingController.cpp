@@ -1,6 +1,7 @@
 #include "UBSharingController.h"
 #include "core/UBApplication.h"
 #include "board/UBBoardController.h"
+#include "board/UBBoardView.h"
 #include "domain/UBGraphicsScene.h"
 
 #include <QApplication>
@@ -166,13 +167,8 @@ void UBSharingController::updateGuestCursorOverlay(const QString& id, qreal x, q
     if (!UBApplication::boardController) return;
 
     // Convert scene coordinates to the control view's viewport coordinates
-    QGraphicsView* view = nullptr;
-    const auto& views = UBApplication::boardController->controlView()
-                        ? QList<QGraphicsView*>{static_cast<QGraphicsView*>(
-                              UBApplication::boardController->controlView())}
-                        : QList<QGraphicsView*>{};
-    if (views.isEmpty()) return;
-    view = views.first();
+    UBBoardView* view = UBApplication::boardController->controlView();
+    if (!view) return;
 
     QPoint vp = view->mapFromScene(QPointF(x, y));
 
@@ -230,7 +226,7 @@ QImage UBSharingController::captureCanvasSnapshot() const
     if (!UBApplication::boardController || !UBApplication::boardController->activeScene())
         return QImage();
 
-    UBGraphicsScene* scene = UBApplication::boardController->activeScene();
+    UBGraphicsScene* scene = UBApplication::boardController->activeScene().get();
     QRectF rect = scene->sceneRect();
     QImage img(rect.size().toSize(), QImage::Format_RGB32);
     img.fill(Qt::white);
