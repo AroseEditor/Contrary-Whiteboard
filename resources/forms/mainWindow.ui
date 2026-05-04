@@ -79,6 +79,7 @@
    <addaction name="actionErase"/>
    <addaction name="separator"/>
    <addaction name="actionHostWhiteboard"/>
+   <addaction name="actionAIAssistant"/>
    <addaction name="actionBoard"/>
    <addaction name="actionWeb"/>
    <addaction name="actionDocument"/>
@@ -662,6 +663,22 @@
    </property>
    <property name="toolTip">
     <string>Host Whiteboard (share via link)</string>
+   </property>
+   <property name="font">
+    <font>
+     <pointsize>9</pointsize>
+    </font>
+   </property>
+  </action>
+  <action name="actionAIAssistant">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>AI</string>
+   </property>
+   <property name="toolTip">
+    <string>AI Assistant (ask questions)</string>
    </property>
    <property name="font">
     <font>

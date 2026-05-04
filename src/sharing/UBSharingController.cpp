@@ -3,6 +3,7 @@
 #include "board/UBBoardController.h"
 #include "board/UBBoardView.h"
 #include "domain/UBGraphicsScene.h"
+#include "domain/UBGraphicsTextItem.h"
 
 #include <QApplication>
 #include <QClipboard>

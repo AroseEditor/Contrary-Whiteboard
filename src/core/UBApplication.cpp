@@ -63,6 +63,8 @@
 
 #include "ui_mainWindow.h"
 #include "gui/UBThemeManager.h"
+#include "gui/UBAIBackend.h"
+#include "gui/UBAIChatPanel.h"
 #include "sharing/UBSharingController.h"
 
 #include "frameworks/UBCryptoUtils.h"
@@ -427,6 +429,54 @@ int UBApplication::exec(const QString& pFileToImport)
             sharingCtrl->onHostCursorMoved(scenePos);
         });
     }
+
+    // ── Push Host + AI buttons to the RIGHT side of the toolbar ──────────────
+    {
+        QWidget* spacer = new QWidget(mainWindow);
+        spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+        spacer->setAttribute(Qt::WA_TransparentForMouseEvents);
+        // Insert the spacer action just before actionHostWhiteboard
+        QAction* hostAction = mainWindow->actionHostWhiteboard;
+        QToolBar* tb = mainWindow->boardToolBar; // or whatever the first toolbar is
+        // Find the first toolbar that contains actionHostWhiteboard
+        for (QToolBar* bar : mainWindow->findChildren<QToolBar*>()) {
+            if (bar->actions().contains(hostAction)) {
+                bar->insertWidget(hostAction, spacer);
+                tb = bar;
+                break;
+            }
+        }
+        Q_UNUSED(tb)
+    }
+
+    // ── AI chat panel docked at bottom ────────────────────────────────────────
+    UBAIChatPanel* aiPanel = new UBAIChatPanel(mainWindow);
+    aiPanel->hide();
+    // Add it to the main window's central layout (below the board view)
+    if (QWidget* central = mainWindow->centralWidget()) {
+        QVBoxLayout* vl = qobject_cast<QVBoxLayout*>(central->layout());
+        if (!vl) {
+            vl = new QVBoxLayout(central);
+            vl->setContentsMargins(0, 0, 0, 0);
+            vl->setSpacing(0);
+        }
+        vl->addWidget(aiPanel);
+    } else {
+        // fallback: float it
+        aiPanel->setWindowFlags(Qt::Tool | Qt::FramelessWindowHint);
+    }
+
+    // Show AI button only if AI enabled in settings
+    bool aiEnabled = UBSettings::settings()->value("AI/enabled", false).toBool();
+    mainWindow->actionAIAssistant->setVisible(aiEnabled);
+
+    connect(mainWindow->actionAIAssistant, &QAction::triggered, mainWindow, [aiPanel]() {
+        aiPanel->toggleVisibility();
+    });
+
+    // Preferences toggle feeds back to button visibility
+    connect(UBSettings::settings(), &QObject::destroyed, mainWindow, []() {});
+    // (Full preference wiring done in UBPreferencesController)
 
     toolBarPositionChanged(UBSettings::settings()->appToolBarPositionedAtTop->get());
 

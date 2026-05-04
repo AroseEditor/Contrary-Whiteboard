@@ -49,6 +49,7 @@
 #include "ui_preferences.h"
 #include "gui/UBThemeManager.h"
 #include "UBShortcutManager.h"
+#include "gui/UBAIBackend.h"
 
 #include <QComboBox>
 #include <QHBoxLayout>
@@ -117,6 +118,22 @@ UBPreferencesController::UBPreferencesController(QWidget *parent)
     if (rootLayout)
         rootLayout->insertLayout(0, themeRow);
     // ---------------------------------------------------
+
+    // --- AI Assistant row (below theme) ---
+    QCheckBox* aiCb = new QCheckBox(
+        tr("Enable AI Assistant (Qwen 2.5 · 0.5B · offline · ~350 MB download on first use)"),
+        mPreferencesWindow);
+    aiCb->setObjectName("aiEnabledCheckBox");
+    aiCb->setChecked(UBSettings::settings()->value("AI/enabled", false).toBool());
+    connect(aiCb, &QCheckBox::toggled, this, [](bool checked) {
+        UBSettings::settings()->setValue("AI/enabled", checked);
+        // Update toolbar button visibility
+        if (UBApplication::mainWindow && UBApplication::mainWindow->actionAIAssistant)
+            UBApplication::mainWindow->actionAIAssistant->setVisible(checked);
+    });
+    if (rootLayout)
+        rootLayout->insertWidget(1, aiCb);
+    // --------------------------------------
 
     // --- Controls tab: keyboard shortcuts + stylus buttons ---
     {
