@@ -403,6 +403,22 @@ int UBApplication::exec(const QString& pFileToImport)
         UBApplication::showMessage(msg);
     });
 
+    // Host cursor → broadcast to guests via event filter on the board view
+    if (boardController->controlView()) {
+        QGraphicsView* bv = static_cast<QGraphicsView*>(boardController->controlView());
+        bv->setMouseTracking(true);
+        bv->viewport()->setMouseTracking(true);
+
+        UBCursorRelay* relay = new UBCursorRelay(sharingCtrl);
+        bv->viewport()->installEventFilter(relay);
+
+        connect(relay, &UBCursorRelay::cursorMoved, sharingCtrl,
+                [sharingCtrl, bv](const QPoint& vpPos) {
+            // Convert viewport coords → scene coords
+            QPointF scenePos = bv->mapToScene(vpPos);
+            sharingCtrl->onHostCursorMoved(scenePos);
+        });
+    }
 
     toolBarPositionChanged(UBSettings::settings()->appToolBarPositionedAtTop->get());
 
