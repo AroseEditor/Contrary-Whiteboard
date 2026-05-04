@@ -24,7 +24,6 @@ Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
 ArchitecturesInstallIn64BitMode=x64
-IconFilename=..\resources\win\ContraryWhiteboard.ico
 SetupIconFile=..\resources\win\ContraryWhiteboard.ico
 
 [Languages]
