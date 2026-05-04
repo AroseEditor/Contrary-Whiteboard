@@ -18,6 +18,33 @@ else()
             target_link_libraries(${PROJECT_NAME} 
                 PkgConfig::Poppler
             )
+            # Add parent directory of poppler include dir to support <poppler/Header.h>
+            foreach(inc_dir ${Poppler_INCLUDE_DIRS})
+                if(EXISTS "${inc_dir}/poppler")
+                    target_include_directories(${PROJECT_NAME} PRIVATE "${inc_dir}")
+                else()
+                    get_filename_component(parent_dir "${inc_dir}" DIRECTORY)
+                    if(EXISTS "${parent_dir}/poppler")
+                        target_include_directories(${PROJECT_NAME} PRIVATE "${parent_dir}")
+                    endif()
+                endif()
+            endforeach()
+        endif()
+        
+        # Brute force fix for macOS Homebrew poppler
+        if(APPLE)
+            execute_process(COMMAND brew --prefix poppler OUTPUT_VARIABLE POPPLER_PREFIX OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+            if(POPPLER_PREFIX)
+                message(STATUS "Mac: Adding Poppler include path from brew prefix: ${POPPLER_PREFIX}/include")
+                target_include_directories(${PROJECT_NAME} PRIVATE "${POPPLER_PREFIX}/include")
+            endif()
+            # Also check the common homebrew location directly
+            if(EXISTS "/opt/homebrew/include/poppler")
+                target_include_directories(${PROJECT_NAME} PRIVATE "/opt/homebrew/include")
+            endif()
+            if(EXISTS "/usr/local/include/poppler")
+                target_include_directories(${PROJECT_NAME} PRIVATE "/usr/local/include")
+            endif()
         endif()
     endif()
 

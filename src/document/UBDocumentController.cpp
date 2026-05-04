@@ -733,7 +733,7 @@ QMimeData *UBDocumentTreeModel::mimeData (const QModelIndexList &indexes) const
         }
     }
 
-#if defined(Q_OS_OSX)
+#if defined(Q_OS_MACOS)
     #if (QT_VERSION < QT_VERSION_CHECK(5, 15, 0))
         if (QOperatingSystemVersion::current().majorVersion() == 10 && QOperatingSystemVersion::current().minorVersion() < 15) /* <= Mojave */
             mimeData->setUrls(urlList);
@@ -2321,7 +2321,7 @@ void UBDocumentController::setupViews()
             delete exportMenu;
         }
 
-#ifdef Q_OS_OSX
+#ifdef Q_OS_MACOS
         mMainWindow->actionDelete->setShortcut(QKeySequence(Qt::Key_Backspace));
 #else
         mMainWindow->actionDelete->setShortcut(QKeySequence(Qt::Key_Delete));
@@ -3702,7 +3702,7 @@ void UBDocumentController::updateActions()
     }
     //N/C - NNE - 20140408 : END
 
-#ifdef Q_OS_OSX
+#ifdef Q_OS_MACOS
         mMainWindow->actionDelete->setShortcut(QKeySequence(Qt::Key_Backspace));
 #else
         mMainWindow->actionDelete->setShortcut(QKeySequence(Qt::Key_Delete));

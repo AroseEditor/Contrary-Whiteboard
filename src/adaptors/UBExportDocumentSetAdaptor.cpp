@@ -40,7 +40,7 @@
 #include "core/UBPersistenceManager.h"
 #include "core/UBForeignObjectsHandler.h"
 
-#ifdef Q_OS_OSX
+#ifdef Q_OS_MACOS
     #include <quazip.h>
     #include <quazipfile.h>
 #else

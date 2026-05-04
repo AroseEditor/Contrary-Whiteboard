@@ -1,10 +1,10 @@
-ï»¿/*
- * Copyright (C) 2015-2018 DÃ©partement de l'Instruction Publique (DIP-SEM)
+/*
+ * Copyright (C) 2015-2018 Département de l'Instruction Publique (DIP-SEM)
  *
  * Copyright (C) 2013 Open Education Foundation
  *
- * Copyright (C) 2010-2013 Groupement d'IntÃ©rÃªt Public pour
- * l'Education NumÃ©rique en Afrique (GIP ENA)
+ * Copyright (C) 2010-2013 Groupement d'Intérêt Public pour
+ * l'Education Numérique en Afrique (GIP ENA)
  *
  * This file is part of OpenBoard.
  *

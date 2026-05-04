@@ -213,7 +213,7 @@ public:
         static void showFullScreen(QWidget * pWidget);
         static void showOSK(bool show);
 
-#ifdef Q_OS_OSX
+#ifdef Q_OS_MACOS
         static void SetMacLocaleByIdentifier(const QString& id);
         static void toggleFinder(const bool on);
 

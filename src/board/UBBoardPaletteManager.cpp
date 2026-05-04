@@ -744,7 +744,7 @@ void UBBoardPaletteManager::changeMode(eUBDockPaletteWidgetMode newMode, bool is
 #else
                         mKeyboardPalette->setParent(0);
 #endif
-#ifdef Q_OS_OSX
+#ifdef Q_OS_MACOS
                         mKeyboardPalette->setWindowFlags(Qt::Dialog | Qt::Popup | Qt::FramelessWindowHint);
 #endif
                         mKeyboardPalette->show();
@@ -756,7 +756,7 @@ void UBBoardPaletteManager::changeMode(eUBDockPaletteWidgetMode newMode, bool is
 #else
                         mKeyboardPalette->setParent((QWidget*)UBApplication::applicationController->uninotesController()->drawingView());
 #endif //Q_OS_LINUX
-#ifdef Q_OS_OSX
+#ifdef Q_OS_MACOS
                         mKeyboardPalette->setWindowFlags(Qt::Dialog | Qt::Popup | Qt::FramelessWindowHint);
 #endif
 

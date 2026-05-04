@@ -39,7 +39,7 @@
 
 #include "globals/UBGlobals.h"
 
-#ifdef Q_OS_OSX
+#ifdef Q_OS_MACOS
     #include <quazip.h>
     #include <quazipfile.h>
 #else

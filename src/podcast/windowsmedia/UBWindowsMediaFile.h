@@ -32,7 +32,7 @@
 
 #include <QtCore>
 
-#ifndef inteface
+#ifndef interface
 #define interface struct
 #endif
 #include <wmsdk.h>

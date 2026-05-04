@@ -85,7 +85,7 @@ UBMagnifier::UBMagnifier(QWidget *parent, bool isInteractive)
 //        setAttribute(Qt::WA_TranslucentBackground);
         setAttribute(Qt::WA_MacAlwaysShowToolWindow);
 #endif
-#ifdef Q_OS_OSX
+#ifdef Q_OS_MACOS
         setAttribute(Qt::WA_MacAlwaysShowToolWindow);
         // didn't find the equivalent in Qt6
         #if (QT_VERSION < QT_VERSION_CHECK(6, 0, 0))

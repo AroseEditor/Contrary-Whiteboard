@@ -43,7 +43,26 @@ else()
                 "${QUAZIP_THIRDPARTY}"
                 "${QUAZIP_THIRDPARTY}/quazip"
             )
-            file(GLOB QUAZIP_SOURCES "${QUAZIP_THIRDPARTY}/quazip/*.cpp" "${QUAZIP_THIRDPARTY}/quazip/*.c")
+            set(QUAZIP_SOURCES
+                "${QUAZIP_THIRDPARTY}/quazip/unzip.c"
+                "${QUAZIP_THIRDPARTY}/quazip/zip.c"
+                "${QUAZIP_THIRDPARTY}/quazip/JlCompress.cpp"
+                "${QUAZIP_THIRDPARTY}/quazip/qioapi.cpp"
+                "${QUAZIP_THIRDPARTY}/quazip/quaadler32.cpp"
+                "${QUAZIP_THIRDPARTY}/quazip/quachecksum32.cpp"
+                "${QUAZIP_THIRDPARTY}/quazip/quacrc32.cpp"
+                "${QUAZIP_THIRDPARTY}/quazip/quagzipfile.cpp"
+                "${QUAZIP_THIRDPARTY}/quazip/quaziodevice.cpp"
+                "${QUAZIP_THIRDPARTY}/quazip/quazip.cpp"
+                "${QUAZIP_THIRDPARTY}/quazip/quazipdir.cpp"
+                "${QUAZIP_THIRDPARTY}/quazip/quazipfile.cpp"
+                "${QUAZIP_THIRDPARTY}/quazip/quazipfileinfo.cpp"
+                "${QUAZIP_THIRDPARTY}/quazip/quazipnewinfo.cpp"
+            )
+            # Force C++ compilation for the .c files to avoid linkage issues
+            set_source_files_properties("${QUAZIP_THIRDPARTY}/quazip/unzip.c" PROPERTIES LANGUAGE CXX)
+            set_source_files_properties("${QUAZIP_THIRDPARTY}/quazip/zip.c" PROPERTIES LANGUAGE CXX)
+            
             target_sources(${PROJECT_NAME} PRIVATE ${QUAZIP_SOURCES})
             target_compile_definitions(${PROJECT_NAME} PRIVATE QUAZIP_STATIC)
         else()

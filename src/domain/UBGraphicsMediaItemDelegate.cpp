@@ -242,7 +242,7 @@ void UBGraphicsMediaItemDelegate::mediaStatusChanged(QMediaPlayer::MediaStatus s
         mMediaControl->totalTimeChanged(delegated()->mediaDuration());
 
     // At the beginning of the video, play/pause to load and display the first frame (not working on OSX)
-#ifndef Q_OS_OSX
+#ifndef Q_OS_MACOS
     if ((status == QMediaPlayer::LoadedMedia || status == QMediaPlayer::BufferedMedia)
             && delegated()->mediaPosition() == delegated()->initialPos()
             && !delegated()->isStopped()
@@ -283,7 +283,7 @@ void UBGraphicsMediaItemDelegate::mediaStateChanged(QMediaPlayer::State state)
     if (state == QMediaPlayer::StoppedState)
     {
         delegated()->setMediaPos(0);
-#ifdef Q_OS_OSX //media positionChanged signal is not always called in osx
+#ifdef Q_OS_MACOS //media positionChanged signal is not always called in osx
         mMediaControl->updateTicker(0);
 #endif
     }

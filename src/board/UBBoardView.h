@@ -70,7 +70,7 @@ public:
     void updateSnapIndicator(Qt::Corner corner, QPointF snapPoint, double angle = 0);
 
     // work around for handling tablet events on MAC OS with Qt 4.8.0 and above
-#if defined(Q_OS_OSX)
+#if defined(Q_OS_MACOS)
     bool directTabletEvent(QEvent *event);
     QWidget *widgetForTabletEvent(QWidget *w, const QPoint &pos);
 #endif

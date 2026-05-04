@@ -39,7 +39,7 @@
 #include "core/UBShortcutManager.h"
 
 // work around for handling tablet events on MAC OS with Qt 4.8.0 and above
-#if defined(Q_OS_OSX)
+#if defined(Q_OS_MACOS)
 #include "board/UBBoardView.h"
 #endif
 
@@ -67,7 +67,7 @@ UBMainWindow::UBMainWindow(QWidget *parent, Qt::WindowFlags flags)
     mStackedLayout = new QStackedLayout(centralWidget);
     setCentralWidget(centralWidget);
 
-#ifdef Q_OS_OSX
+#ifdef Q_OS_MACOS
     actionPreferences->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_Comma));
     actionQuit->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_Q));
 #elif defined(Q_OS_WIN)
@@ -155,7 +155,7 @@ void UBMainWindow::closeEvent(QCloseEvent *event)
 }
 
 // work around for handling tablet events on MAC OS with Qt 4.8.0 and above
-#if defined(Q_OS_OSX)
+#if defined(Q_OS_MACOS)
 bool UBMainWindow::event(QEvent *event)
 {
     bool bRes = QMainWindow::event(event);

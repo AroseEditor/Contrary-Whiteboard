@@ -99,4 +99,12 @@ if(CMAKE_SYSTEM_NAME STREQUAL Linux)
     target_sources(${PROJECT_NAME} PRIVATE
         UBKeyboardPalette_linux.cpp
     )
+elseif(APPLE)
+    target_sources(${PROJECT_NAME} PRIVATE
+        UBKeyboardPalette_mac.mm
+    )
+elseif(WIN32)
+    target_sources(${PROJECT_NAME} PRIVATE
+        UBKeyboardPalette_win.cpp
+    )
 endif()

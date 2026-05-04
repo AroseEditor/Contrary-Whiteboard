@@ -645,7 +645,7 @@ void UBGraphicsVideoItem::videoSizeChanged(QSizeF newSize)
 
     // In OSX, nativeSizeChanged is called when the video starts, but with the initial size of the video,
     // not (0,0), so we lose user own resizes if we perform it.
-#ifndef Q_OS_OSX
+#ifndef Q_OS_MACOS
     if (newSize != QSizeF(0,0))
         this->setSize(newSize.width(), newSize.height());
     else // Make sure the toolbar doesn't disappear
@@ -717,7 +717,7 @@ void UBGraphicsVideoItem::mediaStateChanged(QMediaPlayer::State state)
 #endif
 {
 
-#if defined(Q_OS_OSX) || defined(Q_OS_WIN)
+#if defined(Q_OS_MACOS) || defined(Q_OS_WIN)
     setPlaceholderVisible((state == QMediaPlayer::StoppedState));
 #else
     Q_UNUSED(state);

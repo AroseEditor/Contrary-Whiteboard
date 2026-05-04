@@ -461,7 +461,7 @@ void UBGraphicsProtractor::paintGraduations(QPainter *painter)
 
     QFont font1 = painter->font();
 
-#ifdef Q_OS_OSX
+#ifdef Q_OS_MACOS
     font1.setPointSizeF(font1.pointSizeF() + 3);
     font1.setWeight(QFont::Thin);
 #endif

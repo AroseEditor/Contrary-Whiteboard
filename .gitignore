@@ -2,10 +2,15 @@
 ###################
 *.com
 *.class
-#*.dll
-#*.exe
-#*.o
-#*.so
+*.dll
+*.exe
+*.o
+*.so
+dist/
+qt_local/
+vcpkg/
+build/
+bin/
 
 # Packages #
 ############
@@ -64,6 +69,7 @@ Makefile
 Makefile.Debug
 Makefile.Release
 qt_local
+*.exe
 
 buildContext
 

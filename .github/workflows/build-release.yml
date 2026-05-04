@@ -10,18 +10,22 @@ on:
         description: 'Version tag (e.g. v1.0.0)'
         required: false
         default: 'dev'
+      build-macos:
+        description: 'Build macOS app'
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: write
 
 env:
   QT_VERSION: '6.8.3'
-  APP_NAME: 'ContraryWhiteboard'
 
-# ============================================================
-# WINDOWS — MSVC + NSIS installer
-# ============================================================
 jobs:
+  # ============================================================
+  # WINDOWS — MSVC + NSIS
+  # ============================================================
   build-windows:
     runs-on: windows-latest
     steps:
@@ -30,33 +34,14 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Read version
-        id: ver
-        shell: pwsh
-        run: |
-          $maj   = (Select-String 'VERSION_MAJ\s*=\s*(\d+)'   version.txt).Matches[0].Groups[1].Value
-          $min   = (Select-String 'VERSION_MIN\s*=\s*(\d+)'   version.txt).Matches[0].Groups[1].Value
-          $patch = (Select-String 'VERSION_PATCH\s*=\s*(\d+)' version.txt).Matches[0].Groups[1].Value
-          $vtype = (Select-String 'VERSION_TYPE\s*=\s*(\w+)'  version.txt).Matches[0].Groups[1].Value
-          $ver = "$maj.$min.$patch"
-          if ($vtype -ne 'r') { $ver = "$ver-$vtype" }
-          echo "version=$ver" >> $env:GITHUB_OUTPUT
-
-      - name: Install Windows deps (zlib, ffmpeg, pkgconfig)
-        shell: pwsh
-        run: |
-          vcpkg install zlib:x64-windows ffmpeg:x64-windows pkgconf:x64-windows
-          echo "ZLIB_ROOT=C:\vcpkg\installed\x64-windows" >> $env:GITHUB_ENV
-          echo "PKG_CONFIG_PATH=C:\vcpkg\installed\x64-windows\lib\pkgconfig" >> $env:GITHUB_ENV
-
-      - name: Install Qt (with WebEngine)
+      - name: Install Qt
         uses: jurplel/install-qt-action@v4
         with:
           version: ${{ env.QT_VERSION }}
           host: windows
           target: desktop
           arch: win64_msvc2022_64
-          modules: qtwebengine qtmultimedia qt5compat qtwebchannel qtpositioning
+          modules: qtwebengine qtmultimedia qt5compat qtwebchannel qtpositioning qtserialport
           aqtversion: '==3.1.*'
 
       - name: Setup MSVC
@@ -64,192 +49,45 @@ jobs:
         with:
           arch: x64
 
-      - name: Configure CMake
-        shell: pwsh
-        run: |
-          cmake -S . -B build `
-            -G "Visual Studio 17 2022" -A x64 `
-            -DCMAKE_TOOLCHAIN_FILE="C:\vcpkg\scripts\buildsystems\vcpkg.cmake" `
-            -DCMAKE_PREFIX_PATH="$env:Qt6_DIR" `
-            -DQT_VERSION=6 `
-            -DCMAKE_BUILD_TYPE=Release `
-            -DZLIB_ROOT="$env:ZLIB_ROOT" `
-            -DPKG_CONFIG_EXECUTABLE="C:\vcpkg\installed\x64-windows\tools\pkgconf\pkgconf.exe"
-
-      - name: Build
-        shell: pwsh
-        run: cmake --build build --config Release --parallel
-
-      - name: Stage + windeployqt
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Path deploy -Force
-
-          $exe = Get-ChildItem -Path build -Recurse -Filter "*.exe" |
-                 Where-Object { $_.Name -notmatch 'cmake|moc|rcc|uic|install' } |
-                 Select-Object -First 1
-          if (-not $exe) { Write-Error "No exe found"; exit 1 }
-          Write-Host "Found: $($exe.FullName)"
-          Copy-Item $exe.FullName deploy\ContraryWhiteboard.exe
-
-          & "$env:Qt6_DIR\bin\windeployqt.exe" `
-              --release --no-translations `
-              --no-system-d3d-compiler --no-opengl-sw `
-              deploy\ContraryWhiteboard.exe
-
-          foreach ($d in @('etc','library','fonts','customizations','i18n')) {
-            if (Test-Path "resources/$d") {
-              Copy-Item -Recurse "resources/$d" "deploy/$d"
-            }
-          }
-
-          Get-ChildItem -Path thirdpartydeps -Recurse -Filter "*.dll" -ErrorAction SilentlyContinue |
-            ForEach-Object { Copy-Item $_.FullName deploy\ -ErrorAction SilentlyContinue }
-
-      - name: Install NSIS
-        shell: pwsh
-        run: choco install nsis -y --no-progress
-
-      - name: Build NSIS installer
-        shell: pwsh
+      - name: Run Build Script
+        shell: cmd
+        run: build_windows.bat
         env:
-          APP_VERSION: ${{ steps.ver.outputs.version }}
-        run: |
-          $nsi = @"
-          Unicode True
-          !include "MUI2.nsh"
-          !include "FileFunc.nsh"
-
-          Name "Contrary Whiteboard"
-          OutFile "ContraryWhiteboard-$env:APP_VERSION-Setup-x64.exe"
-          InstallDir "`$PROGRAMFILES64\Contrary Whiteboard"
-          InstallDirRegKey HKLM "Software\ContraryWhiteboard" "InstallDir"
-          RequestExecutionLevel admin
-
-          VIProductVersion "$($env:APP_VERSION -replace '-.*','').0"
-          VIAddVersionKey "ProductName"     "Contrary Whiteboard"
-          VIAddVersionKey "CompanyName"     "AroseEditor"
-          VIAddVersionKey "LegalCopyright"  "(c) 2026 AroseEditor"
-          VIAddVersionKey "FileDescription" "Contrary Whiteboard Installer"
-          VIAddVersionKey "FileVersion"     "$env:APP_VERSION"
-          VIAddVersionKey "ProductVersion"  "$env:APP_VERSION"
-
-          !define MUI_ABORTWARNING
-          !define MUI_WELCOMEPAGE_TITLE "Welcome to Contrary Whiteboard Setup"
-          !define MUI_FINISHPAGE_RUN "`$INSTDIR\ContraryWhiteboard.exe"
-          !define MUI_FINISHPAGE_RUN_TEXT "Launch Contrary Whiteboard"
-
-          !insertmacro MUI_PAGE_WELCOME
-          !insertmacro MUI_PAGE_LICENSE "LICENSE"
-          !insertmacro MUI_PAGE_DIRECTORY
-          !insertmacro MUI_PAGE_INSTFILES
-          !insertmacro MUI_PAGE_FINISH
-          !insertmacro MUI_UNPAGE_CONFIRM
-          !insertmacro MUI_UNPAGE_INSTFILES
-          !insertmacro MUI_LANGUAGE "English"
-
-          Section "Install"
-            SetOutPath "`$INSTDIR"
-            File /r "deploy\*.*"
-            WriteUninstaller "`$INSTDIR\Uninstall.exe"
-            CreateDirectory "`$SMPROGRAMS\Contrary Whiteboard"
-            CreateShortcut "`$SMPROGRAMS\Contrary Whiteboard\Contrary Whiteboard.lnk" "`$INSTDIR\ContraryWhiteboard.exe"
-            CreateShortcut "`$SMPROGRAMS\Contrary Whiteboard\Uninstall.lnk" "`$INSTDIR\Uninstall.exe"
-            CreateShortcut "`$DESKTOP\Contrary Whiteboard.lnk" "`$INSTDIR\ContraryWhiteboard.exe"
-            WriteRegStr   HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\ContraryWhiteboard" "DisplayName"     "Contrary Whiteboard"
-            WriteRegStr   HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\ContraryWhiteboard" "UninstallString" '"`$INSTDIR\Uninstall.exe"'
-            WriteRegStr   HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\ContraryWhiteboard" "Publisher"       "AroseEditor"
-            WriteRegStr   HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\ContraryWhiteboard" "DisplayVersion"  "$env:APP_VERSION"
-            WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\ContraryWhiteboard" "NoModify" 1
-            WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\ContraryWhiteboard" "NoRepair" 1
-            `${GetSize} "`$INSTDIR" "/S=0K" `$0 `$1 `$2
-            IntFmt `$0 "0x%08X" `$0
-            WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\ContraryWhiteboard" "EstimatedSize" "`$0"
-            WriteRegStr HKCR ".ubz" "" "ContraryWhiteboard.Document"
-            WriteRegStr HKCR "ContraryWhiteboard.Document" "" "Contrary Whiteboard Document"
-            WriteRegStr HKCR "ContraryWhiteboard.Document\shell\open\command" "" '"`$INSTDIR\ContraryWhiteboard.exe" "%1"'
-          SectionEnd
-
-          Section "Uninstall"
-            RMDir /r "`$INSTDIR"
-            RMDir /r "`$SMPROGRAMS\Contrary Whiteboard"
-            Delete "`$DESKTOP\Contrary Whiteboard.lnk"
-            DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\ContraryWhiteboard"
-            DeleteRegKey HKLM "Software\ContraryWhiteboard"
-            DeleteRegKey HKCR ".ubz"
-            DeleteRegKey HKCR "ContraryWhiteboard.Document"
-          SectionEnd
-          "@
-          $nsi | Out-File -FilePath installer.nsi -Encoding UTF8
-          & "C:\Program Files (x86)\NSIS\makensis.exe" installer.nsi
-          if ($LASTEXITCODE -ne 0) { exit 1 }
+          VCPKG_ROOT: C:\vcpkg
 
       - name: Upload Windows installer
         uses: actions/upload-artifact@v4
         with:
           name: windows-installer
-          path: ContraryWhiteboard-*-Setup-x64.exe
+          path: ContraryWhiteboard-*-setup.exe
 
-# ============================================================
-# macOS — Universal (arm64 + x86_64) DMG
-# ============================================================
+  # ============================================================
+  # macOS — Universal DMG
+  # ============================================================
   build-macos:
     runs-on: macos-latest
+    if: github.event.inputs.build-macos == 'true' || startsWith(github.ref, 'refs/tags/v')
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Read version
-        id: ver
-        run: |
-          MAJ=$(grep 'VERSION_MAJ'   version.txt | head -1 | cut -d= -f2 | tr -d ' \r')
-          MIN=$(grep 'VERSION_MIN'   version.txt | head -1 | cut -d= -f2 | tr -d ' \r')
-          PAT=$(grep 'VERSION_PATCH' version.txt | head -1 | cut -d= -f2 | tr -d ' \r')
-          TYP=$(grep 'VERSION_TYPE'  version.txt | head -1 | cut -d= -f2 | tr -d ' \r')
-          VER="$MAJ.$MIN.$PAT"
-          [ "$TYP" != "r" ] && VER="$VER-$TYP"
-          echo "version=$VER" >> $GITHUB_OUTPUT
-
-      - name: Install Qt (with WebEngine)
+      - name: Install Qt
         uses: jurplel/install-qt-action@v4
         with:
           version: ${{ env.QT_VERSION }}
           host: mac
           target: desktop
           arch: clang_64
-          modules: qtwebengine qtmultimedia qt5compat qtwebchannel qtpositioning
-          # FIX: pin aqt to 3.1.x
+          modules: qtwebengine qtmultimedia qt5compat qtwebchannel qtpositioning qtserialport
           aqtversion: '==3.1.*'
 
       - name: Install deps
         run: brew install poppler openssl@3 ffmpeg pkg-config
 
-      - name: Configure CMake
-        run: |
-          export PKG_CONFIG_PATH="/opt/homebrew/lib/pkgconfig:/opt/homebrew/opt/openssl@3/lib/pkgconfig:/opt/homebrew/opt/ffmpeg/lib/pkgconfig:$PKG_CONFIG_PATH"
-          cmake -S . -B build \
-            -DCMAKE_PREFIX_PATH="$Qt6_DIR" \
-            -DQT_VERSION=6 \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64"
-
-      - name: Build
-        run: cmake --build build --parallel $(sysctl -n hw.logicalcpu)
-
-      - name: Package DMG
-        env:
-          APP_VERSION: ${{ steps.ver.outputs.version }}
-        run: |
-          APP=$(find build -name "*.app" -not -path "*/Qt*" -not -path "*/qt*" | head -1)
-          [ -z "$APP" ] && echo "No .app found" && exit 1
-          echo "Found: $APP"
-
-          "$Qt6_DIR/bin/macdeployqt" "$APP" -dmg -always-overwrite
-
-          DMG_SRC="${APP%.app}.dmg"
-          mv "$DMG_SRC" "ContraryWhiteboard-$APP_VERSION-macOS.dmg"
+      - name: Run Build Script
+        run: chmod +x build_macos.sh && ./build_macos.sh
 
       - name: Upload macOS DMG
         uses: actions/upload-artifact@v4
@@ -257,9 +95,9 @@ jobs:
           name: macos-dmg
           path: ContraryWhiteboard-*-macOS.dmg
 
-# ============================================================
-# Draft Release
-# ============================================================
+  # ============================================================
+  # Draft Release
+  # ============================================================
   draft-release:
     needs: [build-windows, build-macos]
     runs-on: ubuntu-latest
@@ -274,9 +112,6 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: release-artifacts
-
-      - name: List artifacts
-        run: find release-artifacts -type f
 
       - name: Determine version tag
         id: version
@@ -293,21 +128,15 @@ jobs:
         run: |
           cat > CHANGELOG.md << 'EOF'
           ## What's New
-
+          
+          This release includes:
+          - Full rebranding to Contrary Whiteboard
+          - Migration to Qt 6.8.3
+          - Improved Windows/macOS build pipeline
+          - Fixed linkage and translation issues
+          
           EOF
           git log --oneline -20 >> CHANGELOG.md 2>/dev/null || echo "Initial release" >> CHANGELOG.md
-          cat >> CHANGELOG.md << 'EOF'
-
-          ## Downloads
-
-          | Platform | File |
-          |----------|------|
-          | **Windows** | `ContraryWhiteboard-*-Setup-x64.exe` |
-          | **macOS** | `ContraryWhiteboard-*-macOS.dmg` |
-
-          ---
-          *Contrary Whiteboard is a fork of [OpenBoard](https://github.com/OpenBoard-org/OpenBoard)*
-          EOF
 
       - name: Create Draft Release
         uses: softprops/action-gh-release@v2
@@ -317,7 +146,6 @@ jobs:
           body_path: CHANGELOG.md
           draft: true
           prerelease: false
-          fail_on_unmatched_files: false
           files: |
-            release-artifacts/windows-installer/ContraryWhiteboard-*-Setup-x64.exe
+            release-artifacts/windows-installer/ContraryWhiteboard-*-setup.exe
             release-artifacts/macos-dmg/ContraryWhiteboard-*-macOS.dmg

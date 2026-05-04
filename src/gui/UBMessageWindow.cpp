@@ -46,7 +46,7 @@ UBMessageWindow::UBMessageWindow(QWidget *parent)
 
     mLayout->setContentsMargins(radius() + 15, 4, radius() + 15, 4);
 
-#ifdef Q_OS_OSX
+#ifdef Q_OS_MACOS
     mLayout->setContentsMargins(radius() + 15, 8, radius() + 15, 10);
 #endif
 
@@ -91,7 +91,7 @@ void UBMessageWindow::showMessage(const QString& message, bool showSpinningWheel
     //qApp->sendPostedEvents();
 
     // Moreover, on OSX, calling sendPostedEvents() doesn't solve the initial issue, where the messages are not displayed
-    // todo : find a better solution for Mac, maybe by testing something like the following line (+ X11ExcludeTimers or #ifdef Q_OS_OSX)
+    // todo : find a better solution for Mac, maybe by testing something like the following line (+ X11ExcludeTimers or #ifdef Q_OS_MACOS)
     //QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents | QEventLoop::X11ExcludeTimers);
 
 }
@@ -125,6 +125,6 @@ void UBMessageWindow::hideMessage()
     // on Linux, calling sendPostedEvents() with no filters creates an issue where "longpress events" slots are applied before it should (e.g, add a page between page 1
     // and 2 in a 500+ pages document => the newPage dialog appears like if you did a long click).
     // Moreover, on OSX, calling sendPostedEvents() doesn't solve the initial issue, where the messages are not displayed
-    // todo : find a better solution for Mac, maybe by testing something like the following line (+ X11ExcludeTimers or #ifdef Q_OS_OSX)
+    // todo : find a better solution for Mac, maybe by testing something like the following line (+ X11ExcludeTimers or #ifdef Q_OS_MACOS)
     //QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents | QEventLoop::X11ExcludeTimers);
 }

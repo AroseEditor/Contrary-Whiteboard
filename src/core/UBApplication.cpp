@@ -88,7 +88,7 @@ const QString UBApplication::mimeTypeUniboardPageThumbnail = QString("applicatio
 
 QString UBApplication::fileToOpen = "";
 
-#if defined(Q_OS_OSX) || defined(Q_OS_LINUX)
+#if defined(Q_OS_MACOS) || defined(Q_OS_LINUX)
 bool bIsMinimized = false;
 #endif
 
@@ -107,7 +107,7 @@ UBApplication::UBApplication(const QString &id, int &argc, char **argv) : Single
     setOrganizationDomain("github.com/AroseEditor");
     setApplicationName("Contrary Whiteboard");
 
-#ifdef Q_OS_OSX
+#ifdef Q_OS_MACOS
     // With Qt 6.9 on macOS 15 (at least), icons aren't shown in menus. This forces their display.
     QCoreApplication::setAttribute(Qt::AA_DontShowIconsInMenus, false);
 #endif
@@ -142,7 +142,7 @@ UBApplication::UBApplication(const QString &id, int &argc, char **argv) : Single
     connect(this, &SingleApplication::receivedMessage, this, &UBApplication::handleOpenMessage);
     updateProtoActionsState();
 
-#ifndef Q_OS_OSX
+#ifndef Q_OS_MACOS
     setWindowIcon(QIcon(":/images/ContraryWhiteboard.png"));
 #endif
 
@@ -245,7 +245,7 @@ void UBApplication::setupTranslators(QStringList args)
         mApplicationTranslator = new QTranslator(this);
         mQtGuiTranslator = new QTranslator(this);
 
-        if (mApplicationTranslator->load(UBPlatformUtils::translationPath(QString("OpenBoard_"),language)))
+        if (mApplicationTranslator->load(UBPlatformUtils::translationPath(QString("ContraryWhiteboard_"),language)))
             installTranslator(mApplicationTranslator);
 
         QString qtGuiTranslationPath = UBPlatformUtils::translationPath("qt_", language);
@@ -374,7 +374,7 @@ int UBApplication::exec(const QString& pFileToImport)
 
     connect(mainWindow->actionDesktop, SIGNAL(triggered(bool)), applicationController, SLOT(showDesktop(bool)));
     connect(mainWindow->actionDesktop, SIGNAL(triggered(bool)), this, SLOT(stopScript()));
-#if defined(Q_OS_OSX) || defined(Q_OS_LINUX)
+#if defined(Q_OS_MACOS) || defined(Q_OS_LINUX)
     connect(mainWindow->actionHideApplication, SIGNAL(triggered()), this, SLOT(showMinimized()));
 #else
     connect(mainWindow->actionHideApplication, SIGNAL(triggered()), mainWindow, SLOT(showMinimized()));
@@ -435,7 +435,7 @@ void UBApplication::onScreenCountChanged(int newCount)
 
 void UBApplication::showMinimized()
 {
-#ifdef Q_OS_OSX
+#ifdef Q_OS_MACOS
     mainWindow->hide();
     bIsMinimized = true;
 #elif defined(Q_OS_LINUX)
@@ -674,7 +674,7 @@ bool UBApplication::eventFilter(QObject *obj, QEvent *event)
     {
         boardController->controlView()->setMultiselection(false);
 
-#if defined(Q_OS_OSX)
+#if defined(Q_OS_MACOS)
         if (bIsMinimized) {
             if (mainWindow->isHidden())
                 mainWindow->show();

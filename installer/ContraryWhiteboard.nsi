@@ -35,7 +35,7 @@ SetCompressorDictSize 32
 !include "LogicLib.nsh"
 
 !define MUI_ABORTWARNING
-!define MUI_ICON "${STAGE_DIR}\share\icons\hicolor\scalable\apps\ContraryWhiteboard.png"
+!define MUI_ICON "${STAGE_DIR}\share\icons\hicolor\scalable\apps\ContraryWhiteboard.ico"
 ; If you have a proper .ico, swap the line above for:
 ; !define MUI_ICON "installer\ContraryWhiteboard.ico"
 
@@ -47,7 +47,7 @@ SetCompressorDictSize 32
 !define MUI_FINISHPAGE_LINK_LOCATION "${APP_URL}"
 
 !insertmacro MUI_PAGE_WELCOME
-!insertmacro MUI_PAGE_LICENSE "${STAGE_DIR}\..\..\..\LICENSE"
+!insertmacro MUI_PAGE_LICENSE "${STAGE_DIR}\..\LICENSE"
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
 !insertmacro MUI_PAGE_FINISH
@@ -104,19 +104,19 @@ Section "Main Application" SEC_MAIN
     ; Register .ubz file association
     WriteRegStr HKCR ".ubz"                       ""          "ContraryWhiteboard.ubz"
     WriteRegStr HKCR "ContraryWhiteboard.ubz"     ""          "Contrary Whiteboard Document"
-    WriteRegStr HKCR "ContraryWhiteboard.ubz\DefaultIcon" "" "$INSTDIR\bin\${APP_EXE},0"
-    WriteRegStr HKCR "ContraryWhiteboard.ubz\shell\open\command" "" '"$INSTDIR\bin\${APP_EXE}" "%1"'
+    WriteRegStr HKCR "ContraryWhiteboard.ubz\DefaultIcon" "" "$INSTDIR\${APP_EXE},0"
+    WriteRegStr HKCR "ContraryWhiteboard.ubz\shell\open\command" "" '"$INSTDIR\${APP_EXE}" "%1"'
 
 SectionEnd
 
 Section "Start Menu Shortcut" SEC_STARTMENU
     CreateDirectory "$SMPROGRAMS\${APP_NAME}"
-    CreateShortcut  "$SMPROGRAMS\${APP_NAME}\${APP_NAME}.lnk" "$INSTDIR\bin\${APP_EXE}"
+    CreateShortcut  "$SMPROGRAMS\${APP_NAME}\${APP_NAME}.lnk" "$INSTDIR\${APP_EXE}"
     CreateShortcut  "$SMPROGRAMS\${APP_NAME}\Uninstall.lnk"   "$INSTDIR\Uninstall.exe"
 SectionEnd
 
 Section "Desktop Shortcut" SEC_DESKTOP
-    CreateShortcut "$DESKTOP\${APP_NAME}.lnk" "$INSTDIR\bin\${APP_EXE}"
+    CreateShortcut "$DESKTOP\${APP_NAME}.lnk" "$INSTDIR\${APP_EXE}"
 SectionEnd
 
 ; ===========================================================================

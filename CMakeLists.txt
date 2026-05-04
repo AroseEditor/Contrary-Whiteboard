@@ -34,7 +34,7 @@ project(contrarywhiteboard
     VERSION ${VERSION_NUMBER}
     DESCRIPTION "Contrary Whiteboard is a cross-platform interactive whiteboard application for education and presentations. Fork of OpenBoard by AroseEditor."
     HOMEPAGE_URL "https://github.com/AroseEditor/Contrary-Whiteboard"
-    LANGUAGES CXX
+    LANGUAGES C CXX
 )
 
 add_compile_definitions(UBVERSION="${VERSION}")
@@ -105,8 +105,6 @@ endif()
 # Note: the executable is using lowercase on all platforms
 # ==========================================================================
 
-add_executable(${PROJECT_NAME})
-
 # manage dependencies
 include(cmake/DependencyQt.cmake)
 include(cmake/DependencyOpenSSL.cmake)
@@ -115,11 +113,75 @@ include(cmake/DependencyZlib.cmake)
 include(cmake/DependencyQuaZip.cmake)
 include(cmake/DependencyFFmpeg.cmake)
 
+# Fix inconsistent DLL linkage globally
+add_definitions(-DQUAZIP_STATIC -DUBCFFADAPTOR_STATIC)
+
+if(APPLE)
+    add_executable(${PROJECT_NAME} MACOSX_BUNDLE)
+    set_target_properties(${PROJECT_NAME} PROPERTIES
+        MACOSX_BUNDLE_GUI_IDENTIFIER "com.aroseeditor.contrarywhiteboard"
+        MACOSX_BUNDLE_BUNDLE_NAME "Contrary Whiteboard"
+        MACOSX_BUNDLE_BUNDLE_VERSION "${VERSION_NUMBER}"
+        MACOSX_BUNDLE_SHORT_VERSION_STRING "${VERSION_NUMBER}"
+        MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/resources/macx/Info.plist"
+        MACOSX_BUNDLE_ICON_FILE "OpenBoard.icns"
+    )
+    # Mark the icon as a resource so it gets copied into the bundle
+    set_source_files_properties(resources/macx/OpenBoard.icns PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+    target_sources(${PROJECT_NAME} PRIVATE resources/macx/OpenBoard.icns)
+else()
+    add_executable(${PROJECT_NAME})
+endif()
 
 # add source path to include directories
 target_include_directories(${PROJECT_NAME} PRIVATE
     src
 )
+
+# Platform-specific core sources (Added here to ensure visibility)
+if(WIN32)
+    target_sources(${PROJECT_NAME} PRIVATE
+        src/frameworks/UBPlatformUtils_win.cpp
+        src/gui/UBKeyboardPalette_win.cpp
+    )
+    
+    # Locate Windows System Libraries
+    find_library(WMVCORE_LIB wmvcore)
+    find_library(WINMM_LIB winmm)
+    find_library(OLE32_LIB ole32)
+    find_library(SHELL32_LIB shell32)
+    find_library(ADVAPI32_LIB advapi32)
+    find_library(STRMIIDS_LIB strmiids)
+    find_library(WS2_32_LIB ws2_32)
+    find_library(GDI32_LIB gdi32)
+    find_library(USER32_LIB user32)
+    find_library(MFREADWRITE_LIB mfreadwrite)
+    find_library(MFPLAT_LIB mfplat)
+    find_library(MF_LIB mf)
+    find_library(PROPSYS_LIB propsys)
+
+    target_link_libraries(${PROJECT_NAME}
+        ${WMVCORE_LIB}
+        ${WINMM_LIB}
+        ${OLE32_LIB}
+        ${SHELL32_LIB}
+        ${ADVAPI32_LIB}
+        ${STRMIIDS_LIB}
+        ${WS2_32_LIB}
+        ${GDI32_LIB}
+        ${USER32_LIB}
+        ${MFREADWRITE_LIB}
+        ${MFPLAT_LIB}
+        ${MF_LIB}
+        ${PROPSYS_LIB}
+        shlwapi.lib
+    )
+elseif(APPLE)
+    target_sources(${PROJECT_NAME} PRIVATE
+        src/frameworks/UBPlatformUtils_mac.mm
+        src/gui/UBKeyboardPalette_mac.mm
+    )
+endif()
 
 # add sources from subdirectories
 add_subdirectory(src/adaptors)
@@ -146,6 +208,11 @@ add_subdirectory(resources/forms)
 target_link_libraries(${PROJECT_NAME}
     SingleApplication::SingleApplication
 )
+
+if(WIN32)
+    # Ensure Core5Compat is linked for QTextCodec
+    target_link_libraries(${PROJECT_NAME} Qt6::Core5Compat)
+endif()
 
 
 # ==========================================================================
@@ -212,18 +279,50 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
     OPENBOARD_TPL_PREFIX=${OPENBOARD_TPL_PREFIX}
 )
 
+# Translations
+file(GLOB TS_FILES "resources/i18n/ContraryWhiteboard_*.ts")
+if(TS_FILES)
+    qt6_add_translation(QM_FILES ${TS_FILES})
+    add_custom_target(translations ALL DEPENDS ${QM_FILES})
+    
+    # Ensure QM files are in a known directory for installation
+    foreach(QM_FILE ${QM_FILES})
+        get_filename_component(QM_NAME ${QM_FILE} NAME)
+        add_custom_command(TARGET translations POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy ${QM_FILE} ${PROJECT_BINARY_DIR}/i18n/${QM_NAME}
+        )
+    endforeach()
+endif()
+
 # install files
-install(TARGETS   ${PROJECT_NAME}               RUNTIME)
-install(DIRECTORY ${OPENBOARD_FONT_DIR}         DESTINATION ${OPENBOARD_INSTALL_DATADIR})
-install(DIRECTORY ${OPENBOARD_LIBRARY_DIR}      DESTINATION ${OPENBOARD_INSTALL_DATADIR})
-install(DIRECTORY ${OPENBOARD_STARTUP_HINTS}    DESTINATION ${OPENBOARD_INSTALL_DATADIR})
-install(DIRECTORY ${PROJECT_BINARY_DIR}/i18n    DESTINATION ${OPENBOARD_INSTALL_DATADIR})
-install(FILES     ${OPENBOARD_ETC_FILE}         DESTINATION ${OPENBOARD_INSTALL_SYSCONFDIR})
-install(FILES     ${OPENBOARD_TEMPLATE_FILE}    DESTINATION ${OPENBOARD_INSTALL_DATADIR}/template)
-install(FILES     ${OPENBOARD_ICON_FILE}        DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/scalable/apps)
-install(FILES     ${OPENBOARD_DESKTOP_FILE}     DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/applications)
-install(FILES     ${OPENBOARD_MIMETYPE_FILE}    DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/mime/packages)
-install(FILES     ${OPENBOARD_MIMEICON_FILE}    DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/scalable/mimetypes)
+if(APPLE)
+    # On macOS, we want everything inside the .app bundle
+    install(TARGETS ${PROJECT_NAME} BUNDLE DESTINATION .)
+    install(DIRECTORY ${OPENBOARD_FONT_DIR}         DESTINATION contrarywhiteboard.app/Contents/Resources/share)
+    install(DIRECTORY ${OPENBOARD_LIBRARY_DIR}      DESTINATION contrarywhiteboard.app/Contents/Resources/share)
+    install(DIRECTORY ${OPENBOARD_STARTUP_HINTS}    DESTINATION contrarywhiteboard.app/Contents/Resources/share)
+    install(DIRECTORY ${PROJECT_BINARY_DIR}/i18n    DESTINATION contrarywhiteboard.app/Contents/Resources/share)
+    install(FILES     ${OPENBOARD_ETC_FILE}         DESTINATION contrarywhiteboard.app/Contents/Resources/etc)
+    install(FILES     ${OPENBOARD_TEMPLATE_FILE}    DESTINATION contrarywhiteboard.app/Contents/Resources/share/template)
+else()
+    # On Windows/Linux, use standard bin/share structure
+    install(TARGETS   ${PROJECT_NAME}               RUNTIME DESTINATION bin)
+    install(DIRECTORY ${OPENBOARD_FONT_DIR}         DESTINATION share)
+    install(DIRECTORY ${OPENBOARD_LIBRARY_DIR}      DESTINATION share)
+    install(DIRECTORY ${OPENBOARD_STARTUP_HINTS}    DESTINATION share)
+    install(DIRECTORY ${PROJECT_BINARY_DIR}/i18n    DESTINATION share)
+    install(FILES     ${OPENBOARD_ETC_FILE}         DESTINATION etc)
+    install(FILES     ${OPENBOARD_TEMPLATE_FILE}    DESTINATION share/template)
+    
+    if(WIN32)
+        install(DIRECTORY resources/               DESTINATION share)
+    else()
+        install(FILES     ${OPENBOARD_ICON_FILE}        DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/scalable/apps)
+        install(FILES     ${OPENBOARD_DESKTOP_FILE}     DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/applications)
+        install(FILES     ${OPENBOARD_MIMETYPE_FILE}    DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/mime/packages)
+        install(FILES     ${OPENBOARD_MIMEICON_FILE}    DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/scalable/mimetypes)
+    endif()
+endif()
 
 
 # ==========================================================================

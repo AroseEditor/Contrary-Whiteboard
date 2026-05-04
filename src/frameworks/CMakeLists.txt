@@ -19,8 +19,16 @@ target_sources(${PROJECT_NAME} PRIVATE
     UBVersion.h
 )
 
-if(CMAKE_SYSTEM_NAME STREQUAL Linux)
+if(UNIX AND NOT APPLE)
     target_sources(${PROJECT_NAME} PRIVATE
         UBPlatformUtils_linux.cpp
+    )
+elseif(APPLE)
+    target_sources(${PROJECT_NAME} PRIVATE
+        UBPlatformUtils_mac.mm
+    )
+elseif(WIN32)
+    target_sources(${PROJECT_NAME} PRIVATE
+        UBPlatformUtils_win.cpp
     )
 endif()

@@ -132,7 +132,7 @@ class UBApplication : public SingleApplication
     private slots:
 
         void closing();
-//#ifdef Q_OS_OSX // for some reason this is not compiled if the ifdef is uncommented
+//#ifdef Q_OS_MACOS // for some reason this is not compiled if the ifdef is uncommented
         void showMinimized();
 //#endif
         void onScreenCountChanged(int newCount);

@@ -2057,7 +2057,7 @@ void UBBoardController::closing()
     mIsClosing = true;
     lastWindowClosed();
     ClearUndoStack();
-#ifdef Q_OS_OSX
+#ifdef Q_OS_MACOS
     if (!UBPlatformUtils::errorOpeningVirtualKeyboard)
         showKeyboard(false);
 #else
@@ -2312,7 +2312,7 @@ void UBBoardController::stylusToolChanged(int tool)
         {
             if(mPaletteManager->mKeyboardPalette->m_isVisible)
             {
-#ifdef Q_OS_OSX
+#ifdef Q_OS_MACOS
                 if (!UBPlatformUtils::errorOpeningVirtualKeyboard)
                     UBApplication::mainWindow->actionVirtualKeyboard->activate(QAction::Trigger);
 #else
@@ -2694,7 +2694,7 @@ void UBBoardController::processMimeData(const QMimeData* pMimeData, const QPoint
             }
         }
         else{
-#ifdef Q_OS_OSX
+#ifdef Q_OS_MACOS
                 //  With Safari, in 95% of the drops, the mime datas are hidden in Apple Web Archive pasteboard type.
                 //  This is due to the way Safari is working so we have to dig into the pasteboard in order to retrieve
                 //  the data.

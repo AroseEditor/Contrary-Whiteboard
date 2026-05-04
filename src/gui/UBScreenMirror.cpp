@@ -34,7 +34,7 @@
 #include "core/UBDisplayManager.h"
 #include "board/UBBoardController.h"
 
-#if defined(Q_OS_OSX)
+#if defined(Q_OS_MACOS)
 #include <ApplicationServices/ApplicationServices.h>
 #endif
 

@@ -91,7 +91,7 @@ void UBPlatformUtils::hideMenuBarAndDock()
 {
 
     @try {
-#if defined(Q_OS_OSX) && (QT_VERSION >= QT_VERSION_CHECK(5, 10, 0))
+#if defined(Q_OS_MACOS) && (QT_VERSION >= QT_VERSION_CHECK(5, 10, 0))
         // temporarily disabled due to bug: when switching to desktop mode (and calling this),
         // openboard switches right back to the board mode. clicking again on desktop mode works.
         /*if (desktop) {
@@ -548,7 +548,7 @@ QString UBPlatformUtils::urlFromClipboard()
 
 void UBPlatformUtils::toggleFinder(const bool on)
 {
-#if defined(Q_OS_OSX) && (QT_VERSION >= QT_VERSION_CHECK(5, 10, 0))
+#if defined(Q_OS_MACOS) && (QT_VERSION >= QT_VERSION_CHECK(5, 10, 0))
     if (on)
     {
         [NSApp setPresentationOptions:NSApplicationPresentationDefault];

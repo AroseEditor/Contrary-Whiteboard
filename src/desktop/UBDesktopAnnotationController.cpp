@@ -80,12 +80,12 @@ UBDesktopAnnotationController::UBDesktopAnnotationController(QObject *parent, UB
 
     mTransparentDrawingView = new UBBoardView(UBApplication::boardController, static_cast<QWidget*>(0), false, true); // deleted in UBDesktopAnnotationController::destructor
     mTransparentDrawingView->setAttribute(Qt::WA_TranslucentBackground, true);
-#ifdef Q_OS_OSX
+#ifdef Q_OS_MACOS
     // didn't find the equivalent in Qt6
     #if (QT_VERSION < QT_VERSION_CHECK(6, 0, 0))
         mTransparentDrawingView->setAttribute(Qt::WA_MacNoShadow, true);
     #endif
-#endif //Q_OS_OSX
+#endif //Q_OS_MACOS
 
     mTransparentDrawingView->setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint | Qt::Window | Qt::NoDropShadowWindowHint | Qt::X11BypassWindowManagerHint);
     mTransparentDrawingView->setCacheMode(QGraphicsView::CacheNone);
@@ -365,7 +365,7 @@ void UBDesktopAnnotationController::close()
 void UBDesktopAnnotationController::stylusToolChanged(int tool)
 {
     Q_UNUSED(tool);
-#ifdef Q_OS_OSX
+#ifdef Q_OS_MACOS
     /* no longer needed
      if (UBDrawingController::drawingController()->isInDesktopMode())
      {
@@ -399,7 +399,7 @@ void UBDesktopAnnotationController::updateBackground()
     }
     else
     {
-#if defined(Q_OS_OSX)
+#if defined(Q_OS_MACOS)
         newBrush = QBrush(QColor(127, 127, 127, 15));
 #else
         newBrush = QBrush(QColor(127, 127, 127, 1));

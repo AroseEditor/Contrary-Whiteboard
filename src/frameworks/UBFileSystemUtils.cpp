@@ -36,7 +36,7 @@
 #include "globals/UBGlobals.h"
 
 THIRD_PARTY_WARNINGS_DISABLE
-#ifdef Q_OS_OSX
+#ifdef Q_OS_MACOS
     #include <quazipfile.h>
 #else
     #include "quazipfile.h"

@@ -145,7 +145,7 @@ void UBEmbedController::textChanged(const QString& newText)
     static const QRegularExpression regExp("[<>:\"/\\\\|?*]");
 #endif
 
-#ifdef Q_OS_OSX // Defined on Mac OS X.
+#ifdef Q_OS_MACOS // Defined on Mac OS X.
     QString illegalCharList("      < > : \" / \\ | ? * ");
     static const QRegularExpression regExp("[<>:\"/\\\\|?*]");
 #endif
