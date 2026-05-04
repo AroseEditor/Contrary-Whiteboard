@@ -9,12 +9,17 @@ setlocal enabledelayedexpansion
 if "%VCPKG_ROOT%"=="" set "VCPKG_ROOT=C:\vcpkg"
 echo [DEBUG] VCPKG_ROOT is: "%VCPKG_ROOT%"
 echo [DEBUG] Qt6_DIR is: "%Qt6_DIR%"
+echo [DEBUG] QT_ROOT_DIR is: "%QT_ROOT_DIR%"
+
 if defined Qt6_DIR (
-    :: Qt6_DIR is usually path/to/lib/cmake/Qt6
-    :: We want path/to/bin/qmake.exe
     pushd "%Qt6_DIR%\..\..\.."
     set "QT_ROOT=%CD%"
     popd
+) else if defined QT_ROOT_DIR (
+    set "QT_ROOT=%QT_ROOT_DIR%"
+) else (
+    :: Hard fallback for standard GitHub Runner location
+    if exist "C:\Qt\6.8.3\msvc2022_64" set "QT_ROOT=C:\Qt\6.8.3\msvc2022_64"
 )
 
 if not exist "%QT_ROOT%\bin\qmake.exe" (

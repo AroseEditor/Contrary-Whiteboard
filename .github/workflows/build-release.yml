@@ -54,6 +54,8 @@ jobs:
         run: build_windows_classic.bat
         env:
           VCPKG_ROOT: C:\vcpkg
+          Qt6_DIR: ${{ env.Qt6_DIR }}
+          QT_ROOT_DIR: ${{ env.QT_ROOT_DIR }}
 
       - name: Upload Windows installer
         uses: actions/upload-artifact@v4
