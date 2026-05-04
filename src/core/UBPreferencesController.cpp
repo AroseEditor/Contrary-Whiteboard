@@ -48,10 +48,16 @@
 
 #include "ui_preferences.h"
 #include "gui/UBThemeManager.h"
+#include "UBShortcutManager.h"
 
 #include <QComboBox>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QTableView>
+#include <QHeaderView>
+#include <QKeySequenceEdit>
+#include <QStyledItemDelegate>
+#include <QCheckBox>
 
 #include "core/memcheck.h"
 
@@ -111,6 +117,60 @@ UBPreferencesController::UBPreferencesController(QWidget *parent)
     if (rootLayout)
         rootLayout->insertLayout(0, themeRow);
     // ---------------------------------------------------
+
+    // --- Controls tab: keyboard shortcuts + stylus buttons ---
+    {
+        QWidget* controlsTab = new QWidget(mPreferencesWindow);
+        QVBoxLayout* ctrlLayout = new QVBoxLayout(controlsTab);
+        ctrlLayout->setContentsMargins(8, 8, 8, 8);
+        ctrlLayout->setSpacing(6);
+
+        // "Ignore Ctrl" checkbox — strips Ctrl from shortcuts so P works instead of Ctrl+P
+        QCheckBox* ignoreCtrlCb = new QCheckBox(tr("Use bare keys (P = Pen, E = Eraser, M = Marker, T = Text, S = Selector…)"), controlsTab);
+        ignoreCtrlCb->setObjectName("ignoreCtrlCheckBox");
+        ignoreCtrlCb->setChecked(UBSettings::settings()->value("Shortcut/IgnoreCtrl", true).toBool());
+        connect(ignoreCtrlCb, &QCheckBox::toggled, this, [](bool checked) {
+            UBShortcutManager::shortcutManager()->ignoreCtrl(checked);
+        });
+        ctrlLayout->addWidget(ignoreCtrlCb);
+
+        QLabel* hint = new QLabel(
+            tr("<small style='color:grey'>Double-click a row to edit its key sequence or mouse/tablet button. Changes take effect immediately.</small>"),
+            controlsTab);
+        hint->setTextFormat(Qt::RichText);
+        ctrlLayout->addWidget(hint);
+
+        // Table view backed by UBShortcutManager model
+        QTableView* tv = new QTableView(controlsTab);
+        tv->setModel(UBShortcutManager::shortcutManager());
+        tv->setAlternatingRowColors(true);
+        tv->setSelectionBehavior(QAbstractItemView::SelectRows);
+        tv->setSelectionMode(QAbstractItemView::SingleSelection);
+        tv->setEditTriggers(QAbstractItemView::DoubleClicked | QAbstractItemView::EditKeyPressed);
+        tv->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
+        tv->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
+        tv->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
+        tv->horizontalHeader()->setSectionResizeMode(3, QHeaderView::ResizeToContents);
+        tv->horizontalHeader()->setSectionResizeMode(4, QHeaderView::ResizeToContents);
+        tv->verticalHeader()->hide();
+        tv->setMinimumHeight(300);
+        ctrlLayout->addWidget(tv);
+
+        // Reset-to-defaults button
+        QPushButton* resetBtn = new QPushButton(tr("Reset Selected to Default"), controlsTab);
+        connect(resetBtn, &QPushButton::clicked, this, [tv]() {
+            const QModelIndexList sel = tv->selectionModel()->selectedRows();
+            for (const QModelIndex& idx : sel)
+                UBShortcutManager::shortcutManager()->resetData(idx);
+        });
+        QHBoxLayout* btnRow = new QHBoxLayout();
+        btnRow->addStretch();
+        btnRow->addWidget(resetBtn);
+        ctrlLayout->addLayout(btnRow);
+
+        mPreferencesUI->mainTabWidget->addTab(controlsTab, tr("Controls"));
+    }
+    // ---------------------------------------------------------
 
     adjustScreensPreferences();
 

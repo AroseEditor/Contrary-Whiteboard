@@ -335,6 +335,14 @@ int UBApplication::exec(const QString& pFileToImport)
     mainWindow->actionPaste->setShortcuts(QKeySequence::Paste);
     mainWindow->actionCut->setShortcuts(QKeySequence::Cut);
 
+    // Activate the shortcut / stylus-button manager for all tool actions
+    UBShortcutManager::shortcutManager()->addMainActions(mainWindow);
+
+    // Enable bare-key mode by default (P=Pen, E=Eraser, M=Marker, T=Text, S=Selector…)
+    // ignoreCtrl() is idempotent and persists the user's preference automatically.
+    bool ignoreCtrl = UBSettings::settings()->value("Shortcut/IgnoreCtrl", true).toBool();
+    UBShortcutManager::shortcutManager()->ignoreCtrl(ignoreCtrl);
+
     UBThumbnailUI::_private::initCatalog();
 
     connect(mainWindow->actionBoard, SIGNAL(triggered()), this, SLOT(showBoard()));
@@ -745,6 +753,19 @@ bool UBApplication::eventFilter(QObject *obj, QEvent *event)
 
         return UBShortcutManager::shortcutManager()->handleKeyReleaseEvent(keyEvent)
                     || result;
+    }
+
+    else if (event->type() == QEvent::TabletPress)
+    {
+        QTabletEvent* tabletEvent = static_cast<QTabletEvent*>(event);
+        if (UBShortcutManager::shortcutManager()->handleTabletEvent(tabletEvent))
+            return true;
+    }
+    else if (event->type() == QEvent::MouseButtonPress)
+    {
+        QMouseEvent* mouseEvent = static_cast<QMouseEvent*>(event);
+        if (UBShortcutManager::shortcutManager()->handleMouseEvent(mouseEvent))
+            return true;
     }
 
     return result;
