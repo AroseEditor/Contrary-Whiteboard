@@ -7,12 +7,18 @@ setlocal enabledelayedexpansion
 
 :: 1. Environment Setup
 if "%VCPKG_ROOT%"=="" set "VCPKG_ROOT=C:\vcpkg"
+echo [DEBUG] VCPKG_ROOT is: "%VCPKG_ROOT%"
+echo [DEBUG] Qt6_DIR is: "%Qt6_DIR%"
 if defined Qt6_DIR (
-    set "QT_ROOT=%Qt6_DIR%\..\..\.."
-    for %%i in ("!QT_ROOT!") do set "QT_ROOT=%%~fi"
+    :: Qt6_DIR is usually path/to/lib/cmake/Qt6
+    :: We want path/to/bin/qmake.exe
+    pushd "%Qt6_DIR%\..\..\.."
+    set "QT_ROOT=%CD%"
+    popd
 )
+
 if not exist "%QT_ROOT%\bin\qmake.exe" (
-    echo [ERROR] qmake.exe not found at %QT_ROOT%\bin
+    echo [ERROR] qmake.exe not found at "%QT_ROOT%\bin"
     exit /b 1
 )
 
