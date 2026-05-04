@@ -49,9 +49,9 @@ jobs:
         with:
           arch: x64
 
-      - name: Run Build Script
+      - name: Run Classic Build Script
         shell: cmd
-        run: build_windows.bat
+        run: build_windows_classic.bat
         env:
           VCPKG_ROOT: C:\vcpkg
 
@@ -86,14 +86,14 @@ jobs:
       - name: Install deps
         run: brew install poppler openssl@3 ffmpeg pkg-config
 
-      - name: Run Build Script
-        run: chmod +x build_macos.sh && ./build_macos.sh
+      - name: Run Classic Build Script
+        run: chmod +x build_macos_classic.sh && ./build_macos_classic.sh
 
       - name: Upload macOS DMG
         uses: actions/upload-artifact@v4
         with:
           name: macos-dmg
-          path: ContraryWhiteboard-*-macOS.dmg
+          path: build/macx/release/product/*.dmg
 
   # ============================================================
   # Draft Release
