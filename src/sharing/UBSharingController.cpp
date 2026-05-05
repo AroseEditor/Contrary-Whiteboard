@@ -5,6 +5,7 @@
 #include "board/UBBoardView.h"
 #include "domain/UBGraphicsScene.h"
 #include "domain/UBGraphicsTextItem.h"
+#include "domain/UBGraphicsPixmapItem.h"
 
 #include <QApplication>
 #include <QClipboard>
@@ -211,7 +212,7 @@ void UBSharingController::onClientMessageReceived(const QString& message)
                     }
                 }
                 
-                auto* item = scene->addPixmap(pix);
+                auto* item = scene->addPixmap(pix, nullptr);
                 item->setData(0, "remote_snapshot");
                 item->setZValue(-1000); // stay in background
                 
