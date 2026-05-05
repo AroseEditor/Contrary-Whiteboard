@@ -66,6 +66,7 @@
 #include "gui/UBAIBackend.h"
 #include "gui/UBAIChatPanel.h"
 #include "sharing/UBSharingController.h"
+#include <QDockWidget>
 
 #include "frameworks/UBCryptoUtils.h"
 #include "tools/UBToolsManager.h"
@@ -449,34 +450,22 @@ int UBApplication::exec(const QString& pFileToImport)
         Q_UNUSED(tb)
     }
 
-    // ── AI chat panel docked at bottom ────────────────────────────────────────
+    // ── AI chat panel — docked at bottom ─────────────────────────────────────
     UBAIChatPanel* aiPanel = new UBAIChatPanel(mainWindow);
-    aiPanel->hide();
-    // Add it to the main window's central layout (below the board view)
-    if (QWidget* central = mainWindow->centralWidget()) {
-        QVBoxLayout* vl = qobject_cast<QVBoxLayout*>(central->layout());
-        if (!vl) {
-            vl = new QVBoxLayout(central);
-            vl->setContentsMargins(0, 0, 0, 0);
-            vl->setSpacing(0);
-        }
-        vl->addWidget(aiPanel);
-    } else {
-        // fallback: float it
-        aiPanel->setWindowFlags(Qt::Tool | Qt::FramelessWindowHint);
-    }
+    QDockWidget* aiDock = new QDockWidget(mainWindow);
+    aiDock->setObjectName("aiAssistantDock");
+    aiDock->setTitleBarWidget(new QWidget(aiDock)); // hide title bar; panel has its own header
+    aiDock->setWidget(aiPanel);
+    aiDock->setFeatures(QDockWidget::NoDockWidgetFeatures);
+    mainWindow->addDockWidget(Qt::BottomDockWidgetArea, aiDock);
+    aiDock->hide();
 
-    // Show AI button only if AI enabled in settings
+    // Show AI toolbar button only when enabled in Preferences
     bool aiEnabled = UBSettings::settings()->value("AI/enabled", false).toBool();
     mainWindow->actionAIAssistant->setVisible(aiEnabled);
 
-    connect(mainWindow->actionAIAssistant, &QAction::triggered, mainWindow, [aiPanel]() {
-        aiPanel->toggleVisibility();
-    });
-
-    // Preferences toggle feeds back to button visibility
-    connect(UBSettings::settings(), &QObject::destroyed, mainWindow, []() {});
-    // (Full preference wiring done in UBPreferencesController)
+    connect(mainWindow->actionAIAssistant, &QAction::triggered, mainWindow,
+            [aiDock](bool) { aiDock->setVisible(!aiDock->isVisible()); });
 
     toolBarPositionChanged(UBSettings::settings()->appToolBarPositionedAtTop->get());
 

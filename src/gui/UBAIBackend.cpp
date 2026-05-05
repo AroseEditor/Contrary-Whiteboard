@@ -7,6 +7,8 @@
 #include <QFileInfo>
 #include <QTimer>
 #include <QThread>
+#include <QSettings>
+#include <QCoreApplication>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
@@ -41,11 +43,13 @@ UBAIBackend::~UBAIBackend()
 
 bool UBAIBackend::isEnabled() const
 {
-    return UBSettings::settings()->value("AI/enabled", false).toBool();
+    QSettings s(QCoreApplication::organizationName(), QCoreApplication::applicationName());
+    return s.value("AI/enabled", false).toBool();
 }
 void UBAIBackend::setEnabled(bool enabled)
 {
-    UBSettings::settings()->setValue("AI/enabled", enabled);
+    QSettings s(QCoreApplication::organizationName(), QCoreApplication::applicationName());
+    s.setValue("AI/enabled", enabled);
 }
 
 QString UBAIBackend::modelPath()

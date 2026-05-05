@@ -49,7 +49,6 @@
 #include "ui_preferences.h"
 #include "gui/UBThemeManager.h"
 #include "UBShortcutManager.h"
-#include "gui/UBAIBackend.h"
 
 #include <QComboBox>
 #include <QHBoxLayout>
