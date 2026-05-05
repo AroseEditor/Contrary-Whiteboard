@@ -1,6 +1,7 @@
 #pragma once
 #include <QObject>
 #include <QProcess>
+#include <QFile>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QString>
