@@ -176,6 +176,7 @@ void UBBoardView::init ()
 
     mTabletStylusIsPressed = false;
     mMouseButtonIsPressed = false;
+    mMiddleButtonIsPressed = false;
     mPendingStylusReleaseEvent = false;
 
     setCacheMode (QGraphicsView::CacheBackground);
@@ -351,9 +352,9 @@ void UBBoardView::tabletEvent (QTabletEvent * event)
 
     if (event->type () == QEvent::TabletPress || event->type () == QEvent::TabletEnterProximity) {
 #if (QT_VERSION >= QT_VERSION_CHECK(6, 0, 0))
-        if (event->pointerType () == QPointingDevice::PointerType::Eraser) {
+        if (event->pointerType () == QPointingDevice::PointerType::Eraser || (event->buttons() & Qt::RightButton)) {
 #else
-        if (event->pointerType () == QTabletEvent::Eraser) {
+        if (event->pointerType () == QTabletEvent::Eraser || (event->buttons() & Qt::RightButton)) {
 #endif
             dc->setStylusTool (UBStylusTool::Eraser);
             mUsingTabletEraser = true;
@@ -1103,6 +1104,12 @@ void UBBoardView::mousePressEvent (QMouseEvent *event)
         return;
     }
 
+    // Palm Rejection: ignore mouse press if stylus is already active
+    if (mTabletStylusIsPressed) {
+        event->ignore();
+        return;
+    }
+
     mIsDragInProgress = false;
 
     if (isAbsurdPoint (event->pos ())) {
@@ -1239,11 +1246,23 @@ void UBBoardView::mousePressEvent (QMouseEvent *event)
             break;
         }
     }
+    else if (event->button() == Qt::MiddleButton && isInteractive())
+    {
+        mMiddleButtonIsPressed = true;
+        mPreviousPoint = eventPosition;
+        viewport()->setCursor(QCursor(Qt::ClosedHandCursor));
+        event->accept();
+    }
 }
 
 
 void UBBoardView::mouseMoveEvent (QMouseEvent *event)
 {
+    // Palm Rejection: ignore mouse move if stylus is already active
+    if (mTabletStylusIsPressed) {
+        event->ignore();
+        return;
+    }
     //    static QTime lastCallTime;
     //    if (!lastCallTime.isNull()) {
     //        qDebug() << "time interval is " << lastCallTime.msecsTo(QTime::currentTime());
@@ -1251,6 +1270,22 @@ void UBBoardView::mouseMoveEvent (QMouseEvent *event)
 
     //  QTime mouseMoveTime = QTime::currentTime();
     if(!mIsDragInProgress && ((mapToScene(event->pos()) - mLastPressedMousePos).manhattanLength() < QApplication::startDragDistance())) {
+        if (!(event->buttons() & Qt::MiddleButton))
+            return;
+    }
+
+    if (mMiddleButtonIsPressed && (event->buttons() & Qt::MiddleButton) && isInteractive())
+    {
+#if (QT_VERSION >= QT_VERSION_CHECK(6, 0, 0))
+        QPointF eventPosition = event->position();
+#else
+        QPointF eventPosition = event->localPos();
+#endif
+        qreal dx = eventPosition.x() - mPreviousPoint.x();
+        qreal dy = eventPosition.y() - mPreviousPoint.y();
+        mController->handScroll(dx, dy);
+        mPreviousPoint = eventPosition;
+        event->accept();
         return;
     }
 
@@ -1593,6 +1628,24 @@ void UBBoardView::mouseReleaseEvent (QMouseEvent *event)
         {
             if (getMovingItem())
             {
+                UBGraphicsWidgetItem* widgetItem = qgraphicsitem_cast<UBGraphicsWidgetItem *>(getMovingItem());
+                if (widgetItem)
+                {
+                    widgetItem->updatePosition();
+                }
+            }
+            mWidgetMoved = false;
+        }
+        QGraphicsView::mouseReleaseEvent (event);
+    }
+
+    if (event->button() == Qt::MiddleButton)
+    {
+        mMiddleButtonIsPressed = false;
+        setToolCursor(currentTool);
+        event->accept();
+    }
+}
                 getMovingItem()->setSelected(false);
                 setMovingItem(NULL);
             }

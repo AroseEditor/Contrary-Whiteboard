@@ -148,6 +148,7 @@ private:
     bool mPendingStylusReleaseEvent;
 
     bool mMouseButtonIsPressed;
+    bool mMiddleButtonIsPressed;
     QPointF mPreviousPoint;
     QPoint mMouseDownPos;
 

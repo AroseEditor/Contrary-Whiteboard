@@ -539,7 +539,7 @@ bool UBGraphicsScene::inputDeviceMove(const QPointF& scenePos, const qreal& pres
 
             if (currentTool != UBStylusTool::Line){
                 // Handle the pressure
-                width = dc->currentToolWidth() * qMax(pressure, 0.2);
+                width = dc->currentToolWidth() * qMax(pressure, 0.1);
             }else{
                 // Ignore pressure for line tool
                 width = dc->currentToolWidth();
@@ -633,7 +633,7 @@ bool UBGraphicsScene::inputDeviceMove(const QPointF& scenePos, const qreal& pres
                 // (less polygons to draw) but mostly with making the curve look smooth.
 
                 qreal antiScaleRatio = 1./(UBApplication::boardController->systemScaleFactor() * UBApplication::boardController->currentZoom());
-                qreal MIN_DISTANCE = 10*antiScaleRatio; // arbitrary. Move to settings if relevant.
+                qreal MIN_DISTANCE = 2*antiScaleRatio; // Lowered from 10 to 2 for higher precision
                 qreal distance = QLineF(mPreviousPoint, scenePos).length();
 
                 mDistanceFromLastStrokePoint += distance;
