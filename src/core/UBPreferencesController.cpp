@@ -98,42 +98,64 @@ UBPreferencesController::UBPreferencesController(QWidget *parent)
     mPreferencesUI = new Ui::preferencesDialog();  // deleted in destructor
     mPreferencesUI->setupUi(mPreferencesWindow);
 
-    // --- Theme row injected at the top of the dialog ---
-    mThemeCombo = new QComboBox(mPreferencesWindow);
-    mThemeCombo->setObjectName("themeComboBox");
-    mThemeCombo->addItems({tr("Light"), tr("Dark")});
-    mThemeCombo->setMinimumWidth(120);
+    // ── Appearance tab (Theme + AI) injected as first tab ────────────────────
+    {
+        QWidget* appearTab = new QWidget();
+        QVBoxLayout* aLayout = new QVBoxLayout(appearTab);
+        aLayout->setContentsMargins(16, 16, 16, 16);
+        aLayout->setSpacing(14);
 
-    QLabel* themeLabel = new QLabel(tr("Application Theme:"), mPreferencesWindow);
-    themeLabel->setBuddy(mThemeCombo);
+        // Theme selector row
+        QHBoxLayout* themeRow = new QHBoxLayout();
+        themeRow->setSpacing(10);
+        mThemeCombo = new QComboBox(appearTab);
+        mThemeCombo->setObjectName("themeComboBox");
+        mThemeCombo->addItems({tr("Light"), tr("Dark")});
+        mThemeCombo->setMinimumWidth(120);
+        QString savedTheme = UBSettings::settings()->value("appTheme", "Light").toString();
+        mThemeCombo->setCurrentIndex(mThemeCombo->findText(savedTheme) >= 0
+                                     ? mThemeCombo->findText(savedTheme) : 0);
+        QLabel* themeLabel = new QLabel(tr("Application Theme:"), appearTab);
+        themeLabel->setBuddy(mThemeCombo);
+        themeRow->addWidget(themeLabel);
+        themeRow->addWidget(mThemeCombo);
+        themeRow->addStretch();
+        aLayout->addLayout(themeRow);
 
-    QHBoxLayout* themeRow = new QHBoxLayout();
-    themeRow->setContentsMargins(8, 6, 8, 6);
-    themeRow->addWidget(themeLabel);
-    themeRow->addWidget(mThemeCombo);
-    themeRow->addStretch();
+        // Separator
+        QFrame* sep = new QFrame(appearTab);
+        sep->setFrameShape(QFrame::HLine);
+        sep->setFrameShadow(QFrame::Sunken);
+        aLayout->addWidget(sep);
 
-    // Insert the theme row at the very top of the dialog's root layout
-    QVBoxLayout* rootLayout = qobject_cast<QVBoxLayout*>(mPreferencesWindow->layout());
-    if (rootLayout)
-        rootLayout->insertLayout(0, themeRow);
-    // ---------------------------------------------------
+        // AI Assistant toggle
+        QCheckBox* aiCb = new QCheckBox(
+            tr("Enable AI Assistant  (Qwen 2.5 · 0.5B · fully offline · ~350 MB download on first use)"),
+            appearTab);
+        aiCb->setObjectName("aiEnabledCheckBox");
+        aiCb->setChecked(UBSettings::settings()->value("AI/enabled", false).toBool());
+        connect(aiCb, &QCheckBox::toggled, this, [](bool checked) {
+            UBSettings::settings()->setValue("AI/enabled", checked);
+            if (UBApplication::mainWindow && UBApplication::mainWindow->actionAIAssistant)
+                UBApplication::mainWindow->actionAIAssistant->setVisible(checked);
+        });
+        aLayout->addWidget(aiCb);
 
-    // --- AI Assistant row (below theme) ---
-    QCheckBox* aiCb = new QCheckBox(
-        tr("Enable AI Assistant (Qwen 2.5 · 0.5B · offline · ~350 MB download on first use)"),
-        mPreferencesWindow);
-    aiCb->setObjectName("aiEnabledCheckBox");
-    aiCb->setChecked(UBSettings::settings()->value("AI/enabled", false).toBool());
-    connect(aiCb, &QCheckBox::toggled, this, [](bool checked) {
-        UBSettings::settings()->setValue("AI/enabled", checked);
-        // Update toolbar button visibility
-        if (UBApplication::mainWindow && UBApplication::mainWindow->actionAIAssistant)
-            UBApplication::mainWindow->actionAIAssistant->setVisible(checked);
-    });
-    if (rootLayout)
-        rootLayout->insertWidget(1, aiCb);
-    // --------------------------------------
+        QLabel* aiNote = new QLabel(
+            tr("When enabled, an 'AI' button appears in the toolbar. "
+               "Click it to open the chat panel. The model downloads automatically on first use."),
+            appearTab);
+        aiNote->setWordWrap(true);
+        aiNote->setStyleSheet("color: gray; font-size: 11px;");
+        aLayout->addWidget(aiNote);
+
+        aLayout->addStretch();
+
+        // Insert as first tab
+        mPreferencesUI->mainTabWidget->insertTab(0, appearTab, tr("Appearance"));
+        mPreferencesUI->mainTabWidget->setCurrentIndex(0);
+    }
+    // ─────────────────────────────────────────────────────────────────────────
 
     // --- Controls tab: keyboard shortcuts + stylus buttons ---
     {
