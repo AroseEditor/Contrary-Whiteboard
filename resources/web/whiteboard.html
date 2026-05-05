@@ -3,572 +3,477 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Contrary Whiteboard — Live Session</title>
+<title>Contrary Whiteboard — Live</title>
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: #1a1a2e; color: #eee; font-family: 'Inter', system-ui, sans-serif; overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:#111827;color:#f3f4f6;font-family:'Inter',system-ui,sans-serif;overflow:hidden;height:100vh;display:flex;flex-direction:column}
 
-  #toolbar {
-    display: flex; align-items: center; gap: 6px;
-    padding: 6px 10px; background: rgba(20,20,45,0.98);
-    border-bottom: 1px solid #2a2a5a; z-index: 100; flex-shrink: 0; flex-wrap: wrap;
-  }
-  .tool-btn {
-    display: flex; flex-direction: column; align-items: center;
-    gap: 2px; padding: 5px 9px; border-radius: 8px;
-    border: 1.5px solid transparent; cursor: pointer;
-    background: rgba(255,255,255,0.05);
-    color: #ccc; font-size: 10px; transition: all 0.15s;
-    user-select: none; -webkit-user-select: none;
-  }
-  .tool-btn svg { width: 18px; height: 18px; }
-  .tool-btn:hover { background: rgba(255,255,255,0.12); border-color: #555; color: #fff; }
-  .tool-btn.active { background: rgba(66,133,244,0.28); border-color: #4285f4; color: #fff; }
-  .tool-btn.follow-active { background: rgba(52,211,153,0.25); border-color: #34d399; color: #34d399; }
+/* ── Name overlay ── */
+#nameOverlay{position:fixed;inset:0;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;z-index:999;backdrop-filter:blur(6px)}
+#nameCard{background:#1f2937;border:1px solid #374151;border-radius:16px;padding:36px 40px;text-align:center;min-width:320px}
+#nameCard h2{font-size:22px;font-weight:700;margin-bottom:6px;color:#f9fafb}
+#nameCard p{font-size:13px;color:#9ca3af;margin-bottom:22px}
+#nameInput{width:100%;padding:11px 14px;border-radius:10px;border:1.5px solid #374151;background:#111827;color:#f3f4f6;font-size:15px;outline:none;transition:border-color .2s}
+#nameInput:focus{border-color:#3b82f6}
+#nameBtn{margin-top:14px;width:100%;padding:11px;border-radius:10px;border:none;background:#3b82f6;color:#fff;font-size:15px;font-weight:600;cursor:pointer;transition:background .15s}
+#nameBtn:hover{background:#2563eb}
 
-  #colorPicker { width: 28px; height: 28px; border-radius: 50%; border: 2px solid #555; cursor: pointer; background: none; padding: 0; }
-  #sizeRange { width: 72px; accent-color: #4285f4; }
-  .size-label { font-size: 10px; color: #888; white-space: nowrap; }
+/* ── Toolbar ── */
+#toolbar{display:flex;align-items:center;gap:6px;padding:6px 12px;background:#1f2937;border-bottom:1px solid #374151;z-index:100;flex-shrink:0;flex-wrap:wrap}
+.tbtn{display:flex;flex-direction:column;align-items:center;gap:2px;padding:5px 9px;border-radius:8px;border:1.5px solid transparent;cursor:pointer;background:rgba(255,255,255,.04);color:#d1d5db;font-size:10px;transition:.15s;user-select:none}
+.tbtn svg{width:18px;height:18px}
+.tbtn:hover{background:rgba(255,255,255,.1);border-color:#4b5563;color:#fff}
+.tbtn.active{background:rgba(59,130,246,.25);border-color:#3b82f6;color:#fff}
+.tbtn.factive{background:rgba(52,211,153,.2);border-color:#34d399;color:#34d399}
+#colorPick{width:28px;height:28px;border-radius:50%;border:2px solid #4b5563;cursor:pointer;background:none;padding:0}
+#sizeSlider{width:70px;accent-color:#3b82f6}
+.sep{width:1px;height:22px;background:#374151;margin:0 2px}
+.szbtn{padding:3px 8px;border-radius:5px;border:1px solid #374151;background:rgba(255,255,255,.05);color:#9ca3af;cursor:pointer;font-size:13px;line-height:1}
+.szbtn:hover{background:rgba(255,255,255,.12);color:#fff}
+#tsDisp{font-size:11px;color:#6b7280;min-width:22px;text-align:center}
+#statusBar{margin-left:auto;font-size:11px;color:#6b7280;display:flex;align-items:center;gap:6px}
+#dot{width:8px;height:8px;border-radius:50%;background:#ef4444;display:inline-block;transition:background .3s}
+#dot.ok{background:#22c55e;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
 
-  /* Text size +/- */
-  .sz-btn { padding: 3px 7px; border-radius: 5px; border: 1px solid #444; background: rgba(255,255,255,0.06); color: #ccc; cursor: pointer; font-size: 13px; line-height: 1; }
-  .sz-btn:hover { background: rgba(255,255,255,0.14); color: #fff; }
-  #textSizeDisplay { font-size: 11px; color: #aaa; min-width: 20px; text-align: center; }
+/* ── Page bar ── */
+#pagebar{padding:3px 12px;background:#111827;border-bottom:1px solid #1f2937;font-size:11px;color:#4b5563;flex-shrink:0}
+#pageinfo{color:#6b7280;font-weight:600}
 
-  #statusBar { margin-left: auto; font-size: 11px; color: #aaa; display: flex; align-items: center; gap: 8px; }
-  #connDot { width: 8px; height: 8px; border-radius: 50%; background: #f44; display: inline-block; }
-  #connDot.connected { background: #4f4; animation: pulse 2s infinite; }
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
-  .sep { width: 1px; height: 22px; background: #333; margin: 0 2px; }
+/* ── Canvas area ── */
+#wrap{flex:1;position:relative;overflow:hidden;touch-action:none}
+canvas{position:absolute;top:0;left:0;display:block}
+#bg{z-index:0;background:#fff}  /* host snapshot */
+#hc{z-index:1;pointer-events:none} /* host live strokes */
+#gc{z-index:2}                   /* client / guest strokes */
+#cc{z-index:3;pointer-events:none} /* cursors */
 
-  #pageBar {
-    display: flex; align-items: center; gap: 6px;
-    padding: 4px 10px; background: rgba(15,15,35,0.98);
-    border-bottom: 1px solid #222; z-index: 99; flex-shrink: 0;
-    font-size: 11px; color: #888;
-  }
-  #pageInfo { font-weight: 600; color: #aaa; }
-
-  #canvasWrap { flex: 1; position: relative; overflow: hidden; touch-action: none; }
-  canvas { position: absolute; top: 0; left: 0; display: block; }
-  #bgCanvas  { z-index: 0; background: #fff; }
-  #drawCanvas{ z-index: 1; }
-  #curCanvas { z-index: 2; pointer-events: none; }
-
-  #toast {
-    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-    background: rgba(20,20,50,0.95); border: 1px solid #4285f4;
-    border-radius: 12px; padding: 10px 22px; font-size: 13px;
-    pointer-events: none; opacity: 0; transition: opacity 0.3s; z-index: 999;
-  }
-  #toast.show { opacity: 1; }
+/* ── Toast ── */
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(17,24,39,.95);border:1px solid #3b82f6;border-radius:12px;padding:10px 22px;font-size:13px;pointer-events:none;opacity:0;transition:opacity .3s;z-index:9999}
+#toast.show{opacity:1}
 </style>
 </head>
 <body>
 
-<div id="toolbar">
-  <!-- Draw tools -->
-  <button class="tool-btn active" id="btn-draw" title="Draw (D)" onclick="setTool('draw')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>Draw
-  </button>
-  <button class="tool-btn" id="btn-erase" title="Erase (E)" onclick="setTool('erase')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 20H7L3 16l10-10 7 7-3.5 3.5"/><path d="M6 18L17 7"/></svg>Erase
-  </button>
-  <button class="tool-btn" id="btn-text" title="Text (T)" onclick="setTool('text')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>Text
-  </button>
-
-  <div class="sep"></div>
-
-  <!-- Colour + brush size -->
-  <input type="color" id="colorPicker" value="#2563eb" title="Stroke colour">
-  <input type="range" id="sizeRange" min="1" max="40" value="4" title="Brush / text size"
-         oninput="onSizeChange()">
-  <span class="size-label">Size: <span id="sizeVal">4</span></span>
-
-  <div class="sep"></div>
-
-  <!-- Text size quick buttons -->
-  <button class="sz-btn" title="Smaller text" onclick="adjustTextSize(-2)">A−</button>
-  <span id="textSizeDisplay">18</span>
-  <button class="sz-btn" title="Larger text"  onclick="adjustTextSize(+2)">A+</button>
-
-  <div class="sep"></div>
-
-  <!-- Clear my strokes -->
-  <button class="tool-btn" title="Clear my strokes (X)" onclick="clearMyStrokes()">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M9 6V4h6v2"/></svg>Clear
-  </button>
-
-  <div class="sep"></div>
-
-  <!-- Follow host -->
-  <button class="tool-btn" id="btn-follow" title="Follow host view (F)" onclick="toggleFollow()">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/></svg>Follow
-  </button>
-
-  <div id="statusBar">
-    <span id="connDot"></span>
-    <span id="statusTxt">Connecting…</span>
+<!-- Name prompt -->
+<div id="nameOverlay">
+  <div id="nameCard">
+    <h2>Join Whiteboard</h2>
+    <p>Enter your name so others can see who you are</p>
+    <input id="nameInput" type="text" placeholder="Your name" maxlength="24" autocomplete="off">
+    <button id="nameBtn" onclick="joinSession()">Join →</button>
   </div>
 </div>
 
-<!-- Page indicator bar -->
-<div id="pageBar">
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
-  <span id="pageInfo">Page 1</span>
-  <span style="color:#555">· Host's current page is shown automatically</span>
+<div id="toolbar">
+  <button class="tbtn active" id="btn-draw" onclick="setTool('draw')" title="Draw (D)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg>Draw
+  </button>
+  <button class="tbtn" id="btn-erase" onclick="setTool('erase')" title="Erase (E)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 20H7L3 16l10-10 7 7-3.5 3.5"/><path d="M6 18L17 7"/></svg>Erase
+  </button>
+  <button class="tbtn" id="btn-text" onclick="setTool('text')" title="Text (T)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>Text
+  </button>
+  <div class="sep"></div>
+  <input type="color" id="colorPick" value="#2563eb" title="Color">
+  <input type="range" id="sizeSlider" min="1" max="40" value="4" oninput="document.getElementById('sizeVal').textContent=this.value">
+  <span style="font-size:10px;color:#6b7280">Sz:<span id="sizeVal">4</span></span>
+  <div class="sep"></div>
+  <button class="szbtn" onclick="adjText(-2)" title="Smaller text">A−</button>
+  <span id="tsDisp">18</span>
+  <button class="szbtn" onclick="adjText(+2)" title="Larger text">A+</button>
+  <div class="sep"></div>
+  <button class="tbtn" onclick="clearMe()" title="Clear my strokes (X)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M9 6V4h6v2"/></svg>Clear
+  </button>
+  <div class="sep"></div>
+  <button class="tbtn" id="btn-follow" onclick="toggleFollow()" title="Follow host (F)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/></svg>Follow
+  </button>
+  <div id="statusBar">
+    <span id="dot"></span><span id="stxt">Connecting…</span>
+  </div>
 </div>
+<div id="pagebar">📄 <span id="pageinfo">Page 1</span></div>
 
-<div id="canvasWrap">
-  <canvas id="bgCanvas"></canvas>
-  <canvas id="drawCanvas"></canvas>
-  <canvas id="curCanvas"></canvas>
+<div id="wrap">
+  <canvas id="bg"></canvas>
+  <canvas id="hc"></canvas>
+  <canvas id="gc"></canvas>
+  <canvas id="cc"></canvas>
 </div>
-
 <div id="toast"></div>
 
 <script>
 // ─────────────────────────────────────────────────────────────────────────────
-// Identity & state
+// Identity
 // ─────────────────────────────────────────────────────────────────────────────
-const ME       = 'guest-' + Math.random().toString(36).slice(2, 7);
-const COLORS   = ['#e74c3c','#3498db','#2ecc71','#f39c12','#9b59b6','#1abc9c'];
-const MY_COLOR = COLORS[Math.floor(Math.random() * COLORS.length)];
-
-let tool = 'draw', drawing = false;
-let lastX = 0, lastY = 0;
-let panX = 0, panY = 0, scale = 1;
-let isPanning = false, panStartX = 0, panStartY = 0;
-let followHost = false;
-let ws = null;
-let peers = {};
-let textSize = 18;  // current text font size (pt)
-
-// Scene coordinate space sent by host on init / page_change
-let sceneW = 1920, sceneH = 1080, sceneX = 0, sceneY = 0;
-
-const bgCanvas   = document.getElementById('bgCanvas');
-const drawCanvas = document.getElementById('drawCanvas');
-const curCanvas  = document.getElementById('curCanvas');
-const bgCtx      = bgCanvas.getContext('2d');
-const drawCtx    = drawCanvas.getContext('2d');
-const curCtx     = curCanvas.getContext('2d');
-const wrap       = document.getElementById('canvasWrap');
+const GUEST_ID = 'g' + Math.random().toString(36).slice(2,7);
+const PALETTE  = ['#ef4444','#3b82f6','#22c55e','#f59e0b','#8b5cf6','#06b6d4'];
+const MY_COLOR = PALETTE[Math.floor(Math.random()*PALETTE.length)];
+let   MY_NAME  = '';   // set by name prompt
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Resize
+// Name prompt
 // ─────────────────────────────────────────────────────────────────────────────
-function resizeCanvases() {
-  const w = wrap.clientWidth, h = wrap.clientHeight;
-  [bgCanvas, drawCanvas, curCanvas].forEach(c => { c.width = w; c.height = h; });
-  fitScene();
-  redrawBg();
+document.getElementById('nameInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') joinSession();
+});
+function joinSession() {
+  const v = document.getElementById('nameInput').value.trim();
+  MY_NAME = v || ('Guest-' + GUEST_ID.slice(0,4));
+  document.getElementById('nameOverlay').style.display = 'none';
+  document.getElementById('stxt').textContent = MY_NAME;
+  connect();
+  toast('Welcome, ' + MY_NAME + '!  D=Draw  E=Erase  T=Text  F=Follow', 6000);
 }
-window.addEventListener('resize', resizeCanvases);
-resizeCanvases();
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Canvas setup — 4 layers
+// ─────────────────────────────────────────────────────────────────────────────
+const wrap = document.getElementById('wrap');
+const bgC  = document.getElementById('bg');   // host full snapshot
+const hC   = document.getElementById('hc');   // host live strokes
+const gC   = document.getElementById('gc');   // guest strokes
+const cC   = document.getElementById('cc');   // cursors
+const bgX  = bgC.getContext('2d');
+const hX   = hC.getContext('2d');
+const gX   = gC.getContext('2d');
+const cX   = cC.getContext('2d');
+
+function resize() {
+  const w = wrap.clientWidth, h = wrap.clientHeight;
+  [bgC,hC,gC,cC].forEach(c=>{c.width=w;c.height=h;});
+  fitScene(); redrawBg();
+}
+window.addEventListener('resize', resize);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scene / transform
+// ─────────────────────────────────────────────────────────────────────────────
+let sceneW=1920, sceneH=1080, sceneX=0, sceneY=0;
+let panX=0, panY=0, scale=1;
+let followHost=false;
 
 function fitScene() {
-  if (!sceneW || !sceneH) return;
-  const vw = bgCanvas.width, vh = bgCanvas.height;
-  scale = Math.min(vw / sceneW, vh / sceneH) * 0.95;
-  panX = (vw - sceneW * scale) / 2;
-  panY = (vh - sceneH * scale) / 2;
+  if(!sceneW||!sceneH) return;
+  scale = Math.min(bgC.width/sceneW, bgC.height/sceneH) * 0.95;
+  panX  = (bgC.width  - sceneW*scale) / 2;
+  panY  = (bgC.height - sceneH*scale) / 2;
 }
+function applyT(ctx) {
+  ctx.setTransform(scale,0,0,scale, panX - sceneX*scale, panY - sceneY*scale);
+}
+function toScene(cx,cy) { return {x:(cx-panX)/scale+sceneX, y:(cy-panY)/scale+sceneY}; }
+function toCanvas(sx,sy) { return {x:(sx-sceneX)*scale+panX, y:(sy-sceneY)*scale+panY}; }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Tool
+// Drawing
 // ─────────────────────────────────────────────────────────────────────────────
-function setTool(t) {
-  tool = t;
-  document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('btn-' + t)?.classList.add('active');
-}
-document.addEventListener('keydown', e => {
-  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-  if (e.key === 'd' || e.key === 'D') setTool('draw');
-  if (e.key === 'e' || e.key === 'E') setTool('erase');
-  if (e.key === 't' || e.key === 'T') setTool('text');
-  if (e.key === 'f' || e.key === 'F') toggleFollow();
-  if (e.key === 'x' || e.key === 'X') clearMyStrokes();
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Size controls
-// ─────────────────────────────────────────────────────────────────────────────
-function onSizeChange() {
-  document.getElementById('sizeVal').textContent = document.getElementById('sizeRange').value;
-}
-function adjustTextSize(delta) {
-  textSize = Math.max(8, Math.min(120, textSize + delta));
-  document.getElementById('textSizeDisplay').textContent = textSize;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Follow host
-// ─────────────────────────────────────────────────────────────────────────────
-function toggleFollow() {
-  followHost = !followHost;
-  const btn = document.getElementById('btn-follow');
-  btn.classList.toggle('follow-active', followHost);
-  btn.classList.toggle('active', false);
-  toast(followHost ? '📍 Following host view' : '🔓 Free navigation', 2000);
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Coordinate helpers — canvas pixels ↔ scene coords
-// ─────────────────────────────────────────────────────────────────────────────
-function toScene(cx, cy) {
-  return { x: (cx - panX) / scale + sceneX, y: (cy - panY) / scale + sceneY };
-}
-function toCanvas(sx, sy) {
-  return { x: (sx - sceneX) * scale + panX, y: (sy - sceneY) * scale + panY };
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Drawing helpers
-// ─────────────────────────────────────────────────────────────────────────────
-function applySceneTransform(ctx) {
-  ctx.setTransform(scale, 0, 0, scale, panX - sceneX * scale, panY - sceneY * scale);
-}
-
-function drawLine(ctx, x1, y1, x2, y2, color, width) {
-  ctx.save();
-  applySceneTransform(ctx);
-  ctx.strokeStyle = color;
-  ctx.lineWidth   = width;
-  ctx.lineCap = ctx.lineJoin = 'round';
-  ctx.beginPath();
-  ctx.moveTo(x1, y1);
-  ctx.lineTo(x2, y2);
-  ctx.stroke();
+function drawLine(ctx, x1,y1,x2,y2, color, w) {
+  ctx.save(); applyT(ctx);
+  ctx.strokeStyle=color; ctx.lineWidth=w;
+  ctx.lineCap=ctx.lineJoin='round';
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
   ctx.restore();
 }
-
-function eraseAt(ctx, x, y, radius) {
-  ctx.save();
-  applySceneTransform(ctx);
-  ctx.globalCompositeOperation = 'destination-out';
-  ctx.beginPath();
-  ctx.arc(x, y, radius, 0, Math.PI * 2);
-  ctx.fill();
+function eraseAt(ctx, x,y,r) {
+  ctx.save(); applyT(ctx);
+  ctx.globalCompositeOperation='destination-out';
+  ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
   ctx.restore();
 }
-
-function drawText(ctx, x, y, text, color, size) {
-  ctx.save();
-  applySceneTransform(ctx);
-  ctx.fillStyle = color;
-  ctx.font = `${size || 18}px Inter, sans-serif`;
-  ctx.fillText(text, x, y);
+function drawText(ctx, x,y,txt,color,sz) {
+  ctx.save(); applyT(ctx);
+  ctx.fillStyle=color; ctx.font=sz+'px Inter,sans-serif';
+  ctx.fillText(txt,x,y);
   ctx.restore();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Background snapshot
 // ─────────────────────────────────────────────────────────────────────────────
-let bgImage = null;
+let bgImg = null;
 function redrawBg() {
-  bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
-  if (!bgImage) return;
-  bgCtx.save();
-  applySceneTransform(bgCtx);
-  bgCtx.drawImage(bgImage, sceneX, sceneY, sceneW, sceneH);
-  bgCtx.restore();
+  bgX.clearRect(0,0,bgC.width,bgC.height);
+  if (!bgImg) return;
+  bgX.save(); applyT(bgX);
+  bgX.drawImage(bgImg, sceneX, sceneY, sceneW, sceneH);
+  bgX.restore();
 }
-
-function loadSnapshot(b64, then) {
+function loadSnap(b64, cb) {
+  if (!b64) return;
   const img = new Image();
-  img.onload = () => { bgImage = img; redrawBg(); if (then) then(); };
+  img.onload = () => { bgImg=img; redrawBg(); if(cb) cb(); };
   img.src = 'data:image/jpeg;base64,' + b64;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Apply events from host / server
+// Event handler
 // ─────────────────────────────────────────────────────────────────────────────
 function applySceneInfo(ev) {
-  if (ev.sceneW) {
-    sceneW = ev.sceneW; sceneH = ev.sceneH;
-    sceneX = ev.sceneX || 0; sceneY = ev.sceneY || 0;
-  }
+  if (ev.sceneW) { sceneW=ev.sceneW; sceneH=ev.sceneH; sceneX=ev.sceneX||0; sceneY=ev.sceneY||0; }
 }
+const peers = {};
 
-function applyEvent(ev) {
-  switch (ev.type) {
+function applyEv(ev) {
+  switch(ev.type) {
+
     case 'init':
-      applySceneInfo(ev);
-      fitScene();
-      drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height); // clear client strokes on new session
-      loadSnapshot(ev.canvas);
-      updatePageInfo(ev.pageIdx || 0);
+      applySceneInfo(ev); fitScene();
+      hX.clearRect(0,0,hC.width,hC.height);
+      gX.clearRect(0,0,gC.width,gC.height);
+      loadSnap(ev.canvas);
+      setPage(ev.pageIdx||0);
       break;
 
     case 'snapshot':
-      // Incremental update from host — keep client strokes, just refresh bg
-      loadSnapshot(ev.data);
+      // Reconciliation snapshot from host — refresh bg, update scene dims if changed
+      applySceneInfo(ev);
+      loadSnap(ev.data, ()=>{ hX.clearRect(0,0,hC.width,hC.height); }); // clear host live layer (now baked into snapshot)
       break;
 
     case 'page_change':
-      // Host navigated to a different page
-      applySceneInfo(ev);
-      fitScene();
-      drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height); // clear MY strokes (new page)
-      loadSnapshot(ev.canvas, () => redrawBg());
-      updatePageInfo(ev.pageIdx || 0);
-      peers = {}; // clear stale cursors
-      renderCursors();
-      toast('📄 Host moved to page ' + ((ev.pageIdx || 0) + 1), 2500);
+      applySceneInfo(ev); fitScene();
+      hX.clearRect(0,0,hC.width,hC.height);
+      gX.clearRect(0,0,gC.width,gC.height);
+      loadSnap(ev.canvas);
+      setPage(ev.pageIdx||0);
+      Object.keys(peers).forEach(k=>delete peers[k]);
+      drawCursors();
+      toast('📄 Host moved to page '+((ev.pageIdx||0)+1));
+      break;
+
+    case 'hdraw':
+      // Host live stroke — draw on host canvas layer immediately
+      drawLine(hX, ev.x,ev.y,ev.x2,ev.y2, ev.color||'#222', ev.width||3);
       break;
 
     case 'draw':
-      // Another guest's stroke relayed by server (NOT host — host sends snapshots)
-      if (ev.id !== ME)
-        drawLine(drawCtx, ev.x, ev.y, ev.x2, ev.y2, ev.color || '#fff', ev.width || 3);
+      // Another guest's stroke (server relays, excluding sender)
+      if (ev.id !== GUEST_ID)
+        drawLine(gX, ev.x,ev.y,ev.x2,ev.y2, ev.color||'#2563eb', ev.width||3);
       break;
 
     case 'erase':
-      if (ev.id !== ME)
-        eraseAt(drawCtx, ev.x, ev.y, ev.radius || 20);
+      if (ev.id !== GUEST_ID)
+        eraseAt(gX, ev.x,ev.y, ev.radius||20);
       break;
 
     case 'text':
-      if (ev.id !== ME)
-        drawText(drawCtx, ev.x, ev.y, ev.content, ev.color || '#fff', ev.size || 18);
+      if (ev.id !== GUEST_ID)
+        drawText(gX, ev.x,ev.y, ev.content, ev.color||'#000', ev.size||18);
       break;
 
     case 'cursor':
-      // Both host and other guest cursors shown
-      peers[ev.id] = { x: ev.x, y: ev.y, color: ev.color || '#f90',
-                       isHost: ev.id === 'host', name: ev.id === 'host' ? 'Host' : ev.id };
-      renderCursors();
+      peers[ev.id] = {
+        x: ev.x, y: ev.y,
+        color: ev.color||'#f59e0b',
+        name: ev.name||(ev.id==='host'?'Host':ev.id),
+        isHost: ev.id==='host'
+      };
+      drawCursors();
       break;
 
     case 'viewport':
-      // Host's viewport changed — apply only if following
-      if (followHost) {
-        panX = ev.x; panY = ev.y; scale = ev.scale;
-        redrawBg();
-      }
+      if (followHost) { panX=ev.x; panY=ev.y; scale=ev.scale; redrawBg(); }
       break;
 
     case 'clear':
-      if (ev.id !== ME)
-        drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+      if (ev.id !== GUEST_ID)
+        gX.clearRect(0,0,gC.width,gC.height);
       break;
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Page indicator
-// ─────────────────────────────────────────────────────────────────────────────
-function updatePageInfo(idx) {
-  document.getElementById('pageInfo').textContent = 'Page ' + (idx + 1);
+function setPage(idx) {
+  document.getElementById('pageinfo').textContent = 'Page '+(idx+1);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Cursor overlay
+// Cursor rendering
 // ─────────────────────────────────────────────────────────────────────────────
-function renderCursors() {
-  curCtx.clearRect(0, 0, curCanvas.width, curCanvas.height);
+function drawCursors() {
+  cX.clearRect(0,0,cC.width,cC.height);
   for (const id in peers) {
     const p  = peers[id];
     const cp = toCanvas(p.x, p.y);
-    curCtx.save();
-
-    // Circle
-    curCtx.beginPath();
-    curCtx.arc(cp.x, cp.y, p.isHost ? 8 : 6, 0, Math.PI * 2);
-    curCtx.fillStyle   = p.color;
-    curCtx.fill();
-    curCtx.strokeStyle = '#fff';
-    curCtx.lineWidth   = p.isHost ? 2 : 1.5;
-    curCtx.stroke();
-
-    // Label
-    const label = p.isHost ? '👑 Host' : p.name;
-    curCtx.font        = p.isHost ? 'bold 12px Inter, sans-serif' : 'bold 11px Inter, sans-serif';
-    curCtx.fillStyle   = '#fff';
-    const tw = curCtx.measureText(label).width;
-    curCtx.fillStyle = 'rgba(0,0,0,0.55)';
-    curCtx.fillRect(cp.x + 11, cp.y - 14, tw + 8, 16);
-    curCtx.fillStyle = p.isHost ? '#93c5fd' : '#fff';
-    curCtx.fillText(label, cp.x + 15, cp.y - 2);
-
-    curCtx.restore();
+    const r  = p.isHost ? 9 : 7;
+    // dot
+    cX.save();
+    cX.beginPath(); cX.arc(cp.x,cp.y,r,0,Math.PI*2);
+    cX.fillStyle=p.color; cX.fill();
+    cX.strokeStyle='#fff'; cX.lineWidth=p.isHost?2.5:1.5; cX.stroke();
+    // name badge
+    const label = p.isHost ? '👑 '+p.name : p.name;
+    cX.font = (p.isHost?'bold 12px':'11px') + ' Inter,sans-serif';
+    const tw = cX.measureText(label).width;
+    cX.fillStyle='rgba(0,0,0,.6)';
+    cX.beginPath();
+    cX.roundRect?
+      cX.roundRect(cp.x+r+4, cp.y-10, tw+10, 18, 5):
+      cX.rect(cp.x+r+4, cp.y-10, tw+10, 18);
+    cX.fill();
+    cX.fillStyle = p.isHost?'#93c5fd':'#fff';
+    cX.fillText(label, cp.x+r+9, cp.y+3);
+    cX.restore();
   }
 }
 
-let lastCursorSend = 0;
-function broadcastCursor(sx, sy) {
-  const now = Date.now();
-  if (now - lastCursorSend < 40) return; // ~25 fps
-  lastCursorSend = now;
-  send({ type: 'cursor', x: sx, y: sy, id: ME, color: MY_COLOR });
+let lastCurMs=0;
+function sendCursor(sx,sy) {
+  const now=Date.now();
+  if(now-lastCurMs<33) return;
+  lastCurMs=now;
+  send({type:'cursor',id:GUEST_ID,name:MY_NAME,color:MY_COLOR,x:sx,y:sy});
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Input
+// Tool state
 // ─────────────────────────────────────────────────────────────────────────────
-function getCanvasPos(e) {
-  const r = drawCanvas.getBoundingClientRect();
-  if (e.touches) return { x: e.touches[0].clientX - r.left, y: e.touches[0].clientY - r.top };
-  return { x: e.clientX - r.left, y: e.clientY - r.top };
+let tool='draw', drawing=false, lastX=0, lastY=0;
+let isPanning=false, panSX=0, panSY=0;
+let textSize=18;
+
+function setTool(t) {
+  tool=t;
+  document.querySelectorAll('.tbtn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('btn-'+t)?.classList.add('active');
+}
+function adjText(d) {
+  textSize=Math.max(8,Math.min(120,textSize+d));
+  document.getElementById('tsDisp').textContent=textSize;
+}
+function toggleFollow() {
+  followHost=!followHost;
+  document.getElementById('btn-follow').classList.toggle('factive',followHost);
+  toast(followHost?'📍 Following host':'🔓 Free navigation',2000);
+}
+function clearMe() {
+  gX.clearRect(0,0,gC.width,gC.height);
+  send({type:'clear',id:GUEST_ID,name:MY_NAME});
 }
 
-function onPointerDown(e) {
-  if (e.button === 1 || (e.touches && e.touches.length === 2)) {
-    isPanning = true;
-    const pos = getCanvasPos(e);
-    panStartX = pos.x - panX; panStartY = pos.y - panY;
-    if (followHost) { followHost = false; document.getElementById('btn-follow').classList.remove('follow-active'); }
+document.addEventListener('keydown', e=>{
+  if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA') return;
+  const k=e.key.toLowerCase();
+  if(k==='d') setTool('draw');
+  if(k==='e') setTool('erase');
+  if(k==='t') setTool('text');
+  if(k==='f') toggleFollow();
+  if(k==='x') clearMe();
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Pointer input
+// ─────────────────────────────────────────────────────────────────────────────
+function getPos(e) {
+  const r=gC.getBoundingClientRect();
+  if(e.touches) return {x:e.touches[0].clientX-r.left,y:e.touches[0].clientY-r.top};
+  return {x:e.clientX-r.left,y:e.clientY-r.top};
+}
+function onDown(e) {
+  if(e.button===1||(e.touches&&e.touches.length===2)){
+    isPanning=true;
+    const p=getPos(e); panSX=p.x-panX; panSY=p.y-panY;
+    if(followHost){followHost=false;document.getElementById('btn-follow').classList.remove('factive');}
     return;
   }
-  e.preventDefault();
-  drawing = true;
-  const cp = getCanvasPos(e);
-  const sp = toScene(cp.x, cp.y);
-  lastX = sp.x; lastY = sp.y;
-
-  if (tool === 'text') {
-    const txt = prompt('Enter text:');
-    if (txt) {
-      const color = document.getElementById('colorPicker').value;
-      drawText(drawCtx, sp.x, sp.y, txt, color, textSize);
-      send({ type: 'text', x: sp.x, y: sp.y, content: txt, color, size: textSize, id: ME });
+  e.preventDefault(); drawing=true;
+  const p=getPos(e), sp=toScene(p.x,p.y);
+  lastX=sp.x; lastY=sp.y;
+  if(tool==='text'){
+    const txt=prompt('Enter text:');
+    if(txt){
+      const c=document.getElementById('colorPick').value;
+      drawText(gX,sp.x,sp.y,txt,c,textSize);
+      send({type:'text',id:GUEST_ID,name:MY_NAME,x:sp.x,y:sp.y,content:txt,color:c,size:textSize});
     }
-    drawing = false;
+    drawing=false;
   }
 }
-
-function onPointerMove(e) {
+function onMove(e) {
   e.preventDefault();
-  const cp = getCanvasPos(e);
-
-  if (isPanning) {
-    panX = cp.x - panStartX; panY = cp.y - panStartY;
-    redrawBg();
-    return;
+  const p=getPos(e);
+  if(isPanning){panX=p.x-panSX;panY=p.y-panSY;redrawBg();return;}
+  const sp=toScene(p.x,p.y);
+  sendCursor(sp.x,sp.y);
+  if(!drawing) return;
+  const color=document.getElementById('colorPick').value;
+  const sz=parseInt(document.getElementById('sizeSlider').value);
+  if(tool==='draw'){
+    drawLine(gX,lastX,lastY,sp.x,sp.y,color,sz);
+    send({type:'draw',id:GUEST_ID,name:MY_NAME,x:lastX,y:lastY,x2:sp.x,y2:sp.y,color,width:sz});
+  }else if(tool==='erase'){
+    eraseAt(gX,sp.x,sp.y,sz*3);
+    send({type:'erase',id:GUEST_ID,name:MY_NAME,x:sp.x,y:sp.y,radius:sz*3});
   }
-
-  const sp = toScene(cp.x, cp.y);
-  broadcastCursor(sp.x, sp.y);
-  if (!drawing) return;
-
-  const color = document.getElementById('colorPicker').value;
-  const size  = parseInt(document.getElementById('sizeRange').value);
-
-  if (tool === 'draw') {
-    drawLine(drawCtx, lastX, lastY, sp.x, sp.y, color, size);
-    send({ type: 'draw', x: lastX, y: lastY, x2: sp.x, y2: sp.y, color, width: size, id: ME });
-  } else if (tool === 'erase') {
-    eraseAt(drawCtx, sp.x, sp.y, size * 3);
-    send({ type: 'erase', x: sp.x, y: sp.y, radius: size * 3, id: ME });
-  }
-
-  lastX = sp.x; lastY = sp.y;
+  lastX=sp.x; lastY=sp.y;
 }
+function onUp(){drawing=false;isPanning=false;}
 
-function onPointerUp() { drawing = false; isPanning = false; }
+gC.addEventListener('pointerdown',  onDown,  {passive:false});
+gC.addEventListener('pointermove',  onMove,  {passive:false});
+gC.addEventListener('pointerup',    onUp);
+gC.addEventListener('pointercancel',onUp);
+gC.addEventListener('contextmenu',  e=>e.preventDefault());
 
 // Pinch zoom
-let initDist = 0;
-function touchDist(e) {
-  const dx = e.touches[0].clientX - e.touches[1].clientX;
-  const dy = e.touches[0].clientY - e.touches[1].clientY;
-  return Math.hypot(dx, dy);
-}
+let initD=0;
+gC.addEventListener('touchstart', e=>{if(e.touches.length===2)initD=hypot(e);onDown(e);},{passive:false});
+gC.addEventListener('touchmove',  e=>{
+  if(e.touches.length===2){
+    const d=hypot(e), f=d/initD; initD=d;
+    const r=bgC.getBoundingClientRect();
+    const cx=(e.touches[0].clientX+e.touches[1].clientX)/2-r.left;
+    const cy=(e.touches[0].clientY+e.touches[1].clientY)/2-r.top;
+    panX=cx-(cx-panX)*f; panY=cy-(cy-panY)*f;
+    scale=Math.max(.1,Math.min(8,scale*f));
+    redrawBg(); return;
+  } onMove(e);
+},{passive:false});
+gC.addEventListener('touchend',onUp);
+function hypot(e){const dx=e.touches[0].clientX-e.touches[1].clientX,dy=e.touches[0].clientY-e.touches[1].clientY;return Math.hypot(dx,dy);}
 
-drawCanvas.addEventListener('pointerdown',   onPointerDown,  { passive: false });
-drawCanvas.addEventListener('pointermove',   onPointerMove,  { passive: false });
-drawCanvas.addEventListener('pointerup',     onPointerUp);
-drawCanvas.addEventListener('pointercancel', onPointerUp);
-drawCanvas.addEventListener('contextmenu',   e => e.preventDefault());
-
-drawCanvas.addEventListener('touchstart', e => {
-  if (e.touches.length === 2) initDist = touchDist(e);
-  onPointerDown(e);
-}, { passive: false });
-
-drawCanvas.addEventListener('touchmove', e => {
-  if (e.touches.length === 2) {
-    const d = touchDist(e);
-    const r = bgCanvas.getBoundingClientRect();
-    const cx = (e.touches[0].clientX + e.touches[1].clientX) / 2 - r.left;
-    const cy = (e.touches[0].clientY + e.touches[1].clientY) / 2 - r.top;
-    const f  = d / initDist;
-    initDist = d;
-    panX = cx - (cx - panX) * f;
-    panY = cy - (cy - panY) * f;
-    scale = Math.max(0.1, Math.min(8, scale * f));
-    redrawBg();
-    return;
-  }
-  onPointerMove(e);
-}, { passive: false });
-
-drawCanvas.addEventListener('touchend', onPointerUp);
-
-drawCanvas.addEventListener('wheel', e => {
+gC.addEventListener('wheel',e=>{
   e.preventDefault();
-  const pos = getCanvasPos(e);
-  const f = e.deltaY > 0 ? 0.9 : 1.1;
-  scale = Math.max(0.1, Math.min(8, scale * f));
-  panX = pos.x - (pos.x - panX) * f;
-  panY = pos.y - (pos.y - panY) * f;
+  const p=getPos(e), f=e.deltaY>0?.9:1.1;
+  scale=Math.max(.1,Math.min(8,scale*f));
+  panX=p.x-(p.x-panX)*f; panY=p.y-(p.y-panY)*f;
   redrawBg();
-}, { passive: false });
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Clear my strokes
-// ─────────────────────────────────────────────────────────────────────────────
-function clearMyStrokes() {
-  drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
-  send({ type: 'clear', id: ME });
-}
+},{passive:false});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // WebSocket
 // ─────────────────────────────────────────────────────────────────────────────
-function send(obj) {
-  if (ws && ws.readyState === WebSocket.OPEN)
-    ws.send(JSON.stringify(obj));
+let ws=null;
+function send(obj){if(ws&&ws.readyState===1)ws.send(JSON.stringify(obj));}
+
+function toast(msg,dur=3000){
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.classList.add('show');
+  clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('show'),dur);
+}
+function setStatus(ok){
+  document.getElementById('dot').className=ok?'ok':'';
+  document.getElementById('stxt').textContent=ok?MY_NAME:'Disconnected';
 }
 
-function toast(msg, dur = 3000) {
-  const el = document.getElementById('toast');
-  el.textContent = msg;
-  el.classList.add('show');
-  clearTimeout(el._t);
-  el._t = setTimeout(() => el.classList.remove('show'), dur);
-}
-
-function setStatus(ok) {
-  document.getElementById('connDot').className = ok ? 'connected' : '';
-  document.getElementById('statusTxt').textContent = ok ? 'Connected · ' + ME : 'Disconnected';
-}
-
-function connect() {
-  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  ws = new WebSocket(proto + '//' + location.host + '/ws');
-
-  ws.onopen = () => {
+function connect(){
+  const proto=location.protocol==='https:'?'wss:':'ws:';
+  ws=new WebSocket(proto+'//'+location.host+'/ws');
+  ws.onopen=()=>{
     setStatus(true);
-    toast('✅ Connected to whiteboard session!');
-    send({ type: 'hello', id: ME, color: MY_COLOR });
+    send({type:'hello',id:GUEST_ID,name:MY_NAME,color:MY_COLOR});
   };
-  ws.onclose = () => {
-    setStatus(false);
-    toast('⚠️ Disconnected. Reconnecting in 3 s…');
-    setTimeout(connect, 3000);
-  };
-  ws.onerror  = err => console.error('WS error', err);
-  ws.onmessage = msg => {
-    try { applyEvent(JSON.parse(msg.data)); } catch(e) { console.error(e); }
-  };
+  ws.onclose=()=>{setStatus(false);toast('Disconnected — reconnecting…');setTimeout(connect,3000);};
+  ws.onerror=err=>console.error('WS',err);
+  ws.onmessage=m=>{try{applyEv(JSON.parse(m.data));}catch(e){console.error(e);}};
 }
 
-connect();
-toast('Welcome! D=Draw E=Erase T=Text F=Follow Host X=Clear | Scroll/Pinch to zoom', 7000);
+// Init canvas sizes (connection waits for name entry)
+resize();
 </script>
 </body>
 </html>
