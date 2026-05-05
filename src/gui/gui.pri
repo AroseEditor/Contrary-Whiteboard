@@ -49,7 +49,8 @@ HEADERS +=  \
     src/gui/UBSnapIndicator.h \
     src/gui/UBThemeManager.h \
     src/gui/UBAIBackend.h \
-    src/gui/UBAIChatPanel.h
+    src/gui/UBAIChatPanel.h \
+    src/gui/UBJoinDialog.h
 SOURCES +=  \
     src/gui/UBThumbnail.cpp \
     src/gui/UBThumbnailArranger.cpp \
@@ -101,7 +102,8 @@ SOURCES +=  \
     src/gui/UBSnapIndicator.cpp \
     src/gui/UBThemeManager.cpp \
     src/gui/UBAIBackend.cpp \
-    src/gui/UBAIChatPanel.cpp
+    src/gui/UBAIChatPanel.cpp \
+    src/gui/UBJoinDialog.cpp
 win32:SOURCES += src/gui/UBKeyboardPalette_win.cpp
 macx:OBJECTIVE_SOURCES += src/gui/UBKeyboardPalette_mac.mm
 linux-g++:SOURCES += src/gui/UBKeyboardPalette_linux.cpp
