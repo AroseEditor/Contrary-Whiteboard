@@ -6,6 +6,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QTimer>
+#include <QThread>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
@@ -160,10 +161,12 @@ void UBAIBackend::startServer()
 
     QString prog = modelPath();
 #ifdef Q_OS_WIN
-    // On Windows, llamafile is a PE EXE — run directly
-    prog += "";   // file was saved without extension, add .exe alias via shell
+    // On Windows, llamafile is a PE EXE — invoke via cmd so the OS handles execution
+    QStringList wsArgs;
+    wsArgs << "/c" << prog;
+    wsArgs += args;
     m_process->setProgram("cmd.exe");
-    m_process->setArguments({"/c", prog} + args);
+    m_process->setArguments(wsArgs);
 #else
     m_process->setProgram(prog);
     m_process->setArguments(args);

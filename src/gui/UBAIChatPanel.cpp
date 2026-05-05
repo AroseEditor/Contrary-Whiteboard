@@ -6,6 +6,7 @@
 #include <QKeyEvent>
 #include <QScrollBar>
 #include <QFrame>
+#include <QTextCursor>
 
 UBAIChatPanel::UBAIChatPanel(QWidget* parent) : QWidget(parent)
 {
