@@ -125,13 +125,13 @@ canvas{position:absolute;top:0;left:0;display:block}
     <canvas id="cc"></canvas>
     
     <div id="zoomControls">
-      <button class="zbtn" onclick="zoom(1.2)" title="Zoom In">
+      <button class="zbtn" onclick="zoom(1.2)" title="Zoom In (+)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       </button>
-      <button class="zbtn" onclick="zoom(0.8)" title="Zoom Out">
+      <button class="zbtn" onclick="zoom(0.8)" title="Zoom Out (-)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/></svg>
       </button>
-      <button class="zbtn" onclick="fitScene()" title="Reset View">
+      <button class="zbtn" onclick="fitScene()" title="Reset View (0)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/></svg>
       </button>
       <div id="zoomVal">100%</div>
@@ -142,36 +142,29 @@ canvas{position:absolute;top:0;left:0;display:block}
 
 <script>
 // ─────────────────────────────────────────────────────────────────────────────
-// Identity
+// Identity & State
 // ─────────────────────────────────────────────────────────────────────────────
 const GUEST_ID = 'g' + Math.random().toString(36).slice(2,7);
 const PALETTE  = ['#ef4444','#3b82f6','#22c55e','#f59e0b','#8b5cf6','#06b6d4'];
 const MY_COLOR = PALETTE[Math.floor(Math.random()*PALETTE.length)];
-let   MY_NAME  = '';   // set by name prompt
+let   MY_NAME  = '';
+
+// Rendering State
+let history = []; // Strokes since last snapshot
+let bgImg = null;
+let sceneW=1920, sceneH=1080, sceneX=0, sceneY=0;
+let panX=0, panY=0, scale=1;
+let followHost=false;
+const peers = {};
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Name prompt
-// ─────────────────────────────────────────────────────────────────────────────
-document.getElementById('nameInput').addEventListener('keydown', e => {
-  if (e.key === 'Enter') joinSession();
-});
-function joinSession() {
-  const v = document.getElementById('nameInput').value.trim();
-  MY_NAME = v || ('Guest-' + GUEST_ID.slice(0,4));
-  document.getElementById('nameOverlay').style.display = 'none';
-  document.getElementById('stxt').textContent = MY_NAME;
-  connect();
-  toast('Welcome, ' + MY_NAME + '!  D=Draw  E=Erase  T=Text  F=Follow', 6000);
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Canvas setup — 4 layers
+// Canvas setup
 // ─────────────────────────────────────────────────────────────────────────────
 const wrap = document.getElementById('wrap');
-const bgC  = document.getElementById('bg');   // host full snapshot
-const hC   = document.getElementById('hc');   // host live strokes
-const gC   = document.getElementById('gc');   // guest strokes
-const cC   = document.getElementById('cc');   // cursors
+const bgC  = document.getElementById('bg');   
+const hC   = document.getElementById('hc');   
+const gC   = document.getElementById('gc');   
+const cC   = document.getElementById('cc');   
 const bgX  = bgC.getContext('2d');
 const hX   = hC.getContext('2d');
 const gX   = gC.getContext('2d');
@@ -180,134 +173,127 @@ const cX   = cC.getContext('2d');
 function resize() {
   const w = wrap.clientWidth, h = wrap.clientHeight;
   [bgC,hC,gC,cC].forEach(c=>{c.width=w;c.height=h;});
-  fitScene(); redrawBg();
+  fitScene(); redraw();
 }
 window.addEventListener('resize', resize);
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scene / transform
+// Rendering Logic
 // ─────────────────────────────────────────────────────────────────────────────
-let sceneW=1920, sceneH=1080, sceneX=0, sceneY=0;
-let panX=0, panY=0, scale=1;
-let followHost=false;
-
 function fitScene() {
   if(!sceneW||!sceneH) return;
   scale = Math.min(bgC.width/sceneW, bgC.height/sceneH) * 0.95;
   panX  = (bgC.width  - sceneW*scale) / 2;
   panY  = (bgC.height - sceneH*scale) / 2;
 }
+
 function applyT(ctx) {
-  ctx.setTransform(scale,0,0,scale, panX - sceneX*scale, panY - sceneY*scale);
+  ctx.setTransform(scale, 0, 0, scale, panX - sceneX*scale, panY - sceneY*scale);
 }
+
 function toScene(cx,cy) { return {x:(cx-panX)/scale+sceneX, y:(cy-panY)/scale+sceneY}; }
-function toCanvas(sx,sy) { return {x:(sx-sceneX)*scale+panX, y:(sy-sceneY)*scale+panY}; }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Drawing
-// ─────────────────────────────────────────────────────────────────────────────
-function drawLine(ctx, x1,y1,x2,y2, color, w) {
+function redraw() {
+  // Clear everything
+  [bgX, hX, gX, cX].forEach(ctx => ctx.clearRect(0, 0, bgC.width, bgC.height));
+  
+  // 1. Draw Background Snapshot
+  if (bgImg) {
+    bgX.save(); applyT(bgX);
+    bgX.drawImage(bgImg, sceneX, sceneY, sceneW, sceneH);
+    bgX.restore();
+  }
+
+  // 2. Draw History (strokes received since last snapshot)
+  history.forEach(ev => {
+    if (ev.type === 'hdraw' || ev.type === 'draw') {
+      const targetCtx = (ev.type === 'hdraw') ? hX : gX;
+      drawLine(targetCtx, ev.x, ev.y, ev.x2, ev.y2, ev.color, ev.width, false);
+    } else if (ev.type === 'erase') {
+      eraseAt(gX, ev.x, ev.y, ev.radius, false);
+    } else if (ev.type === 'text') {
+      drawText(gX, ev.x, ev.y, ev.content, ev.color, ev.size, false);
+    }
+  });
+
+  // 3. Draw Cursors
+  drawCursors();
+  updateZoomLabel();
+}
+
+function drawLine(ctx, x1, y1, x2, y2, color, w, push = true) {
+  if (push) history.push({type: (ctx === hX ? 'hdraw' : 'draw'), x:x1, y:y1, x2:x2, y2:y2, color, width:w});
   ctx.save(); applyT(ctx);
-  ctx.strokeStyle=color; ctx.lineWidth=w;
-  ctx.lineCap=ctx.lineJoin='round';
-  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+  ctx.strokeStyle = color; ctx.lineWidth = w;
+  ctx.lineCap = ctx.lineJoin = 'round';
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
   ctx.restore();
 }
-function eraseAt(ctx, x,y,r) {
+
+function eraseAt(ctx, x, y, r, push = true) {
+  if (push) history.push({type: 'erase', x, y, radius:r});
   ctx.save(); applyT(ctx);
-  ctx.globalCompositeOperation='destination-out';
-  ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
-  ctx.restore();
-}
-function drawText(ctx, x,y,txt,color,sz) {
-  ctx.save(); applyT(ctx);
-  ctx.fillStyle=color; ctx.font=sz+'px Inter,sans-serif';
-  ctx.fillText(txt,x,y);
+  ctx.globalCompositeOperation = 'destination-out';
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.fill();
   ctx.restore();
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Background snapshot
-// ─────────────────────────────────────────────────────────────────────────────
-let bgImg = null;
-function redrawBg() {
-  bgX.clearRect(0,0,bgC.width,bgC.height);
-  if (!bgImg) return;
-  bgX.save(); applyT(bgX);
-  bgX.drawImage(bgImg, sceneX, sceneY, sceneW, sceneH);
-  bgX.restore();
-}
-function loadSnap(b64, cb) {
-  if (!b64) return;
-  const img = new Image();
-  img.onload = () => { bgImg=img; redrawBg(); if(cb) cb(); };
-  img.src = 'data:image/jpeg;base64,' + b64;
+function drawText(ctx, x, y, txt, color, sz, push = true) {
+  if (push) history.push({type: 'text', x, y, content:txt, color, size:sz});
+  ctx.save(); applyT(ctx);
+  ctx.fillStyle = color; ctx.font = sz + 'px Inter, sans-serif';
+  ctx.fillText(txt, x, y);
+  ctx.restore();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Event handler
+// Event Dispatcher
 // ─────────────────────────────────────────────────────────────────────────────
-function applySceneInfo(ev) {
-  if (ev.sceneW) { sceneW=ev.sceneW; sceneH=ev.sceneH; sceneX=ev.sceneX||0; sceneY=ev.sceneY||0; }
-}
-const peers = {};
-
 function applyEv(ev) {
   switch(ev.type) {
-
     case 'init':
-      applySceneInfo(ev); fitScene();
-      hX.clearRect(0,0,hC.width,hC.height);
-      gX.clearRect(0,0,gC.width,gC.height);
-      loadSnap(ev.canvas);
+      applySceneInfo(ev);
+      history = []; // reset on full page load
+      loadSnap(ev.canvas, () => { fitScene(); redraw(); });
       setPage(ev.pageIdx||0);
       break;
 
     case 'snapshot':
-      // Reconciliation snapshot from host — refresh bg, update scene dims if changed
       applySceneInfo(ev);
-      loadSnap(ev.data, ()=>{ hX.clearRect(0,0,hC.width,hC.height); }); // clear host live layer (now baked into snapshot)
+      // New snapshot from host means current history is now "baked" in
+      loadSnap(ev.data, () => { history = []; redraw(); });
       break;
 
     case 'page_change':
-      applySceneInfo(ev); fitScene();
-      hX.clearRect(0,0,hC.width,hC.height);
-      gX.clearRect(0,0,gC.width,gC.height);
-      loadSnap(ev.canvas);
+      applySceneInfo(ev);
+      history = [];
+      loadSnap(ev.canvas, () => { fitScene(); redraw(); });
       setPage(ev.pageIdx||0);
-      Object.keys(peers).forEach(k=>delete peers[k]);
-      drawCursors();
+      peersClear();
       toast('📄 Host moved to page '+((ev.pageIdx||0)+1));
       break;
 
     case 'hdraw':
-      // Host live stroke — draw on host canvas layer immediately
-      drawLine(hX, ev.x,ev.y,ev.x2,ev.y2, ev.color||'#222', ev.width||3);
+      drawLine(hX, ev.x, ev.y, ev.x2, ev.y2, ev.color||'#222', ev.width||3);
       break;
 
     case 'draw':
-      // Another guest's stroke (server relays, excluding sender)
       if (ev.id !== GUEST_ID)
-        drawLine(gX, ev.x,ev.y,ev.x2,ev.y2, ev.color||'#2563eb', ev.width||3);
+        drawLine(gX, ev.x, ev.y, ev.x2, ev.y2, ev.color||'#2563eb', ev.width||3);
       break;
 
     case 'erase':
       if (ev.id !== GUEST_ID)
-        eraseAt(gX, ev.x,ev.y, ev.radius||20);
+        eraseAt(gX, ev.x, ev.y, ev.radius||20);
       break;
 
     case 'text':
       if (ev.id !== GUEST_ID)
-        drawText(gX, ev.x,ev.y, ev.content, ev.color||'#000', ev.size||18);
+        drawText(gX, ev.x, ev.y, ev.content, ev.color||'#000', ev.size||18);
       break;
 
     case 'cursor':
-      peers[ev.id] = {
-        x: ev.x, y: ev.y,
-        color: ev.color||'#f59e0b',
-        name: ev.name||(ev.id==='host'?'Host':ev.id),
-        isHost: ev.id==='host'
-      };
+      peers[ev.id] = { x: ev.x, y: ev.y, color: ev.color||'#f59e0b', name: ev.name||ev.id, isHost: ev.id==='host' };
       drawCursors();
       break;
 
@@ -317,8 +303,7 @@ function applyEv(ev) {
         scale = cz;
         panX  = bgC.width/2  - ev.cx * cz;
         panY  = bgC.height/2 - ev.cy * cz;
-        updateZoomLabel();
-        redrawBg(); 
+        redraw();
       }
       break;
 
@@ -327,10 +312,99 @@ function applyEv(ev) {
       break;
 
     case 'clear':
-      if (ev.id !== GUEST_ID)
-        gX.clearRect(0,0,gC.width,gC.height);
+      if (ev.id === GUEST_ID) {
+        // I cleared my own — we could filter history, but usually just clear local
+      } else {
+        // Someone cleared — since history is shared, we'd need more logic, 
+        // but for now just clear guest layer.
+        gX.clearRect(0, 0, gC.width, gC.height);
+      }
       break;
   }
+}
+
+function applySceneInfo(ev) {
+  if (ev.sceneW) { sceneW=ev.sceneW; sceneH=ev.sceneH; sceneX=ev.sceneX||0; sceneY=ev.sceneY||0; }
+}
+
+function loadSnap(b64, cb) {
+  if (!b64) { if(cb)cb(); return; }
+  const img = new Image();
+  img.onload = () => { bgImg=img; if(cb) cb(); else redraw(); };
+  img.src = 'data:image/jpeg;base64,' + b64;
+}
+
+function peersClear() { Object.keys(peers).forEach(k=>delete peers[k]); drawCursors(); }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UI Helpers
+// ─────────────────────────────────────────────────────────────────────────────
+function joinSession() {
+  const v = document.getElementById('nameInput').value.trim();
+  MY_NAME = v || ('Guest-' + GUEST_ID.slice(0,4));
+  document.getElementById('nameOverlay').style.display = 'none';
+  document.getElementById('stxt').textContent = MY_NAME;
+  connect();
+  toast('Welcome, ' + MY_NAME + '!  Scroll to zoom, Middle-click to pan.', 6000);
+}
+
+function drawCursors() {
+  cX.clearRect(0, 0, cC.width, cC.height);
+  for (const id in peers) {
+    const p = peers[id];
+    const cp = toCanvas(p.x, p.y);
+    const r = p.isHost ? 9 : 7;
+    cX.save();
+    cX.beginPath(); cX.arc(cp.x, cp.y, r, 0, Math.PI*2);
+    cX.fillStyle = p.color; cX.fill();
+    cX.strokeStyle = '#fff'; cX.lineWidth = p.isHost?2.5:1.5; cX.stroke();
+    const label = p.isHost ? '👑 '+p.name : p.name;
+    cX.font = (p.isHost?'bold 12px':'11px') + ' Inter, sans-serif';
+    const tw = cX.measureText(label).width;
+    cX.fillStyle = 'rgba(0,0,0,.6)';
+    if(cX.roundRect) cX.beginPath(), cX.roundRect(cp.x+r+4, cp.y-10, tw+10, 18, 5), cX.fill();
+    cX.fillStyle = p.isHost?'#93c5fd':'#fff';
+    cX.fillText(label, cp.x+r+9, cp.y+3);
+    cX.restore();
+  }
+}
+
+function zoom(f) {
+  const cx = bgC.width / 2, cy = bgC.height / 2;
+  const oldS = scale;
+  scale = Math.max(.05, Math.min(20, scale * f));
+  const realF = scale / oldS;
+  panX = cx - (cx - panX) * realF;
+  panY = cy - (cy - panY) * realF;
+  redraw();
+}
+
+function updateZoomLabel() {
+  document.getElementById('zoomVal').textContent = Math.round(scale * 100) + '%';
+}
+
+function toggleFollow() {
+  followHost = !followHost;
+  document.getElementById('btn-follow').classList.toggle('factive', followHost);
+  toast(followHost ? '📍 Following host' : '🔓 Free navigation', 2000);
+  if (followHost) send({type: 'follow_me'});
+}
+
+function setTool(t) {
+  tool=t;
+  document.querySelectorAll('.tbtn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('btn-'+t)?.classList.add('active');
+}
+
+function adjText(d) {
+  textSize = Math.max(8, Math.min(120, textSize+d));
+  document.getElementById('tsDisp').textContent = textSize;
+}
+
+function clearMe() {
+  history = history.filter(h => h.id !== GUEST_ID);
+  redraw();
+  send({type:'clear',id:GUEST_ID,name:MY_NAME});
 }
 
 function updateSidebar(count, current) {
@@ -346,122 +420,29 @@ function updateSidebar(count, current) {
 }
 
 function requestPage(idx) {
-  if (followHost) {
-    toast("Following host - can't switch pages manually", 2000);
-    return;
-  }
+  if (followHost) return toast("Following host - can't switch pages manually", 2000);
   send({type: 'request_page', pageIdx: idx});
 }
 
 function setPage(idx) {
   document.getElementById('pageinfo').textContent = 'Page '+(idx+1);
   const items = document.querySelectorAll('.pageItem');
-  items.forEach((it, i) => {
-    it.classList.toggle('active', i === idx);
-  });
+  items.forEach((it, i) => it.classList.toggle('active', i === idx));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Cursor rendering
+// Input handling
 // ─────────────────────────────────────────────────────────────────────────────
-function drawCursors() {
-  cX.clearRect(0,0,cC.width,cC.height);
-  for (const id in peers) {
-    const p  = peers[id];
-    const cp = toCanvas(p.x, p.y);
-    const r  = p.isHost ? 9 : 7;
-    // dot
-    cX.save();
-    cX.beginPath(); cX.arc(cp.x,cp.y,r,0,Math.PI*2);
-    cX.fillStyle=p.color; cX.fill();
-    cX.strokeStyle='#fff'; cX.lineWidth=p.isHost?2.5:1.5; cX.stroke();
-    // name badge
-    const label = p.isHost ? '👑 '+p.name : p.name;
-    cX.font = (p.isHost?'bold 12px':'11px') + ' Inter,sans-serif';
-    const tw = cX.measureText(label).width;
-    cX.fillStyle='rgba(0,0,0,.6)';
-    cX.beginPath();
-    cX.roundRect?
-      cX.roundRect(cp.x+r+4, cp.y-10, tw+10, 18, 5):
-      cX.rect(cp.x+r+4, cp.y-10, tw+10, 18);
-    cX.fill();
-    cX.fillStyle = p.isHost?'#93c5fd':'#fff';
-    cX.fillText(label, cp.x+r+9, cp.y+3);
-    cX.restore();
-  }
-}
+let tool='draw', drawing=false, lastX=0, lastY=0, isPanning=false, panSX=0, panSY=0, textSize=18;
 
-let lastCurMs=0;
-function sendCursor(sx,sy) {
-  const now=Date.now();
-  if(now-lastCurMs<33) return;
-  lastCurMs=now;
-  send({type:'cursor',id:GUEST_ID,name:MY_NAME,color:MY_COLOR,x:sx,y:sy});
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Tool state
-// ─────────────────────────────────────────────────────────────────────────────
-let tool='draw', drawing=false, lastX=0, lastY=0;
-let isPanning=false, panSX=0, panSY=0;
-let textSize=18;
-
-function setTool(t) {
-  tool=t;
-  document.querySelectorAll('.tbtn').forEach(b=>b.classList.remove('active'));
-  document.getElementById('btn-'+t)?.classList.add('active');
-}
-function adjText(d) {
-  textSize=Math.max(8,Math.min(120,textSize+d));
-  document.getElementById('tsDisp').textContent=textSize;
-}
-function toggleFollow() {
-  followHost=!followHost;
-  document.getElementById('btn-follow').classList.toggle('factive',followHost);
-  toast(followHost?'📍 Following host':'🔓 Free navigation',2000);
-  if (followHost) send({type: 'follow_me'}); // Notify host we want viewport updates
-}
-function zoom(f) {
-  const cx = bgC.width / 2;
-  const cy = bgC.height / 2;
-  const oldS = scale;
-  scale = Math.max(.05, Math.min(20, scale * f));
-  const realF = scale / oldS;
-  panX = cx - (cx - panX) * realF;
-  panY = cy - (cy - panY) * realF;
-  updateZoomLabel();
-  redrawBg();
-}
-function updateZoomLabel() {
-  document.getElementById('zoomVal').textContent = Math.round(scale * 100) + '%';
-}
-function clearMe() {
-  gX.clearRect(0,0,gC.width,gC.height);
-  send({type:'clear',id:GUEST_ID,name:MY_NAME});
-}
-
-document.addEventListener('keydown', e=>{
-  if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA') return;
-  const k=e.key.toLowerCase();
-  if(k==='d') setTool('draw');
-  if(k==='e') setTool('erase');
-  if(k==='t') setTool('text');
-  if(k==='f') toggleFollow();
-  if(k==='x') clearMe();
-  if(k==='=' || k==='+') zoom(1.2);
-  if(k==='-' || k==='_') zoom(0.8);
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Pointer input
-// ─────────────────────────────────────────────────────────────────────────────
 function getPos(e) {
   const r=gC.getBoundingClientRect();
-  if(e.touches) return {x:e.touches[0].clientX-r.left,y:e.touches[0].clientY-r.top};
-  return {x:e.clientX-r.left,y:e.clientY-r.top};
+  if(e.touches) return {x:e.touches[0].clientX-r.left, y:e.touches[0].clientY-r.top};
+  return {x:e.clientX-r.left, y:e.clientY-r.top};
 }
+
 function onDown(e) {
-  if(e.button===1||(e.touches&&e.touches.length===2)){
+  if(e.button===1 || (e.touches && e.touches.length===2)){
     isPanning=true;
     const p=getPos(e); panSX=p.x-panX; panSY=p.y-panY;
     if(followHost){followHost=false;document.getElementById('btn-follow').classList.remove('factive');}
@@ -480,86 +461,71 @@ function onDown(e) {
     drawing=false;
   }
 }
+
 function onMove(e) {
   e.preventDefault();
   const p=getPos(e);
-  if(isPanning){panX=p.x-panSX;panY=p.y-panSY;redrawBg();return;}
+  if(isPanning){ panX=p.x-panSX; panY=p.y-panSY; redraw(); return; }
   const sp=toScene(p.x,p.y);
   sendCursor(sp.x,sp.y);
   if(!drawing) return;
-  const color=document.getElementById('colorPick').value;
-  const sz=parseInt(document.getElementById('sizeSlider').value);
+  const color=document.getElementById('colorPick').value, sz=parseInt(document.getElementById('sizeSlider').value);
   if(tool==='draw'){
     drawLine(gX,lastX,lastY,sp.x,sp.y,color,sz);
     send({type:'draw',id:GUEST_ID,name:MY_NAME,x:lastX,y:lastY,x2:sp.x,y2:sp.y,color,width:sz});
-  }else if(tool==='erase'){
+  } else if(tool==='erase'){
     eraseAt(gX,sp.x,sp.y,sz*3);
     send({type:'erase',id:GUEST_ID,name:MY_NAME,x:sp.x,y:sp.y,radius:sz*3});
   }
   lastX=sp.x; lastY=sp.y;
 }
+
+function sendCursor(sx,sy) {
+  if(Date.now()-(sendCursor.last||0) < 33) return;
+  sendCursor.last=Date.now();
+  send({type:'cursor',id:GUEST_ID,name:MY_NAME,color:MY_COLOR,x:sx,y:sy});
+}
+
 function onUp(){drawing=false;isPanning=false;}
 
 gC.addEventListener('pointerdown',  onDown,  {passive:false});
 gC.addEventListener('pointermove',  onMove,  {passive:false});
 gC.addEventListener('pointerup',    onUp);
 gC.addEventListener('pointercancel',onUp);
-gC.addEventListener('contextmenu',  e=>e.preventDefault());
-
-// Pinch zoom
-let initD=0;
-gC.addEventListener('touchstart', e=>{if(e.touches.length===2)initD=hypot(e);onDown(e);},{passive:false});
-gC.addEventListener('touchmove',  e=>{
-  if(e.touches.length===2){
-    const d=hypot(e), f=d/initD; initD=d;
-    const r=bgC.getBoundingClientRect();
-    const cx=(e.touches[0].clientX+e.touches[1].clientX)/2-r.left;
-    const cy=(e.touches[0].clientY+e.touches[1].clientY)/2-r.top;
-    panX=cx-(cx-panX)*f; panY=cy-(cy-panY)*f;
-    scale=Math.max(.1,Math.min(8,scale*f));
-    redrawBg(); return;
-  } onMove(e);
-},{passive:false});
-gC.addEventListener('touchend',onUp);
-function hypot(e){const dx=e.touches[0].clientX-e.touches[1].clientX,dy=e.touches[0].clientY-e.touches[1].clientY;return Math.hypot(dx,dy);}
-
 gC.addEventListener('wheel',e=>{
   e.preventDefault();
   const p=getPos(e), f=e.deltaY>0?.9:1.1;
   scale=Math.max(.1,Math.min(8,scale*f));
   panX=p.x-(p.x-panX)*f; panY=p.y-(p.y-panY)*f;
-  redrawBg();
+  redraw();
 },{passive:false});
 
+document.addEventListener('keydown', e=>{
+  if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA') return;
+  const k=e.key.toLowerCase();
+  if(k==='d') setTool('draw'); else if(k==='e') setTool('erase'); else if(k==='t') setTool('text');
+  else if(k==='f') toggleFollow(); else if(k==='x') clearMe();
+  else if(k==='=' || k==='+') zoom(1.2); else if(k==='-' || k==='_') zoom(0.8);
+  else if(k==='0') { fitScene(); redraw(); }
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
-// WebSocket
+// Connection
 // ─────────────────────────────────────────────────────────────────────────────
 let ws=null;
 function send(obj){if(ws&&ws.readyState===1)ws.send(JSON.stringify(obj));}
 
-function toast(msg,dur=3000){
-  const el=document.getElementById('toast');
-  el.textContent=msg; el.classList.add('show');
-  clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('show'),dur);
-}
-function setStatus(ok){
-  document.getElementById('dot').className=ok?'ok':'';
-  document.getElementById('stxt').textContent=ok?MY_NAME:'Disconnected';
-}
-
 function connect(){
   const proto=location.protocol==='https:'?'wss:':'ws:';
   ws=new WebSocket(proto+'//'+location.host+'/ws');
-  ws.onopen=()=>{
-    setStatus(true);
-    send({type:'hello',id:GUEST_ID,name:MY_NAME,color:MY_COLOR});
-  };
-  ws.onclose=()=>{setStatus(false);toast('Disconnected — reconnecting…');setTimeout(connect,3000);};
+  ws.onopen=()=>{ setStatus(true); send({type:'hello',id:GUEST_ID,name:MY_NAME,color:MY_COLOR}); };
+  ws.onclose=()=>{ setStatus(false); toast('Disconnected — reconnecting…'); setTimeout(connect,3000); };
   ws.onerror=err=>console.error('WS',err);
   ws.onmessage=m=>{try{applyEv(JSON.parse(m.data));}catch(e){console.error(e);}};
 }
+function setStatus(ok){ document.getElementById('dot').className=ok?'ok':''; document.getElementById('stxt').textContent=ok?MY_NAME:'Disconnected'; }
+function toast(msg,dur=3000){ const el=document.getElementById('toast'); el.textContent=msg; el.classList.add('show'); clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('show'),dur); }
 
-// Init canvas sizes (connection waits for name entry)
 resize();
 </script>
 </body>

@@ -49,13 +49,29 @@ UBJoinDialog::UBJoinDialog(QWidget* parent) : QDialog(parent)
 
 QString UBJoinDialog::url() const {
     QString u = m_urlEdit->text().trimmed();
-    if (!u.startsWith("ws://") && !u.startsWith("wss://") && !u.startsWith("http")) {
-        // Assume ngrok-free.app or similar
+    if (u.isEmpty()) return QString();
+
+    // Remove any trailing slashes
+    while (u.endsWith('/')) u.chop(1);
+
+    // If it's a raw domain or ngrok ID (no protocol at all)
+    if (!u.contains("://")) {
+        // Most modern web-based sharing uses wss
         u = "wss://" + u;
     }
-    // Convert https to wss for websockets
-    if (u.startsWith("https://")) u.replace("https://", "wss://");
-    if (u.startsWith("http://"))  u.replace("http://", "ws://");
+
+    // Convert https to wss and http to ws for websocket compatibility
+    if (u.startsWith("https://")) {
+        u.replace("https://", "wss://");
+    } else if (u.startsWith("http://")) {
+        u.replace("http://", "ws://");
+    }
+
+    // Ensure we have a protocol
+    if (!u.startsWith("ws://") && !u.startsWith("wss://")) {
+         u = "wss://" + u;
+    }
+
     return u;
 }
 

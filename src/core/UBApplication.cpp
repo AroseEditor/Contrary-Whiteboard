@@ -416,10 +416,9 @@ int UBApplication::exec(const QString& pFileToImport)
     });
 
     // Join Collaboration
-    QAction* joinAction = new QAction(QIcon(":/images/toolbar/plus.png"), tr("Join"), this);
+    QAction* joinAction = new QAction(QIcon(":/images/toolbar/plusBlack.png"), tr("Join"), this);
     joinAction->setCheckable(true);
     joinAction->setToolTip(tr("Join a collaboration session using a Room ID"));
-    mainWindow->boardToolBar->addAction(joinAction);
     
     connect(joinAction, &QAction::triggered, this, [sharingCtrl, joinAction]() {
         if (sharingCtrl->isClient()) {
@@ -442,22 +441,35 @@ int UBApplication::exec(const QString& pFileToImport)
         if (msg.contains("Disconnected")) joinAction->setChecked(false);
     });
 
-    // ── Push Host + AI buttons to the RIGHT side of the toolbar ──────────────
+    // ── Rearrange Toolbar ───────────────────────────────────────────────────
     {
+        QToolBar* tb = mainWindow->boardToolBar;
+        
+        // Remove AI assistant from its original place to move it to the end
+        tb->removeAction(mainWindow->actionAIAssistant);
+        
+        // Find where Host is to insert Join right after it
+        QAction* hostAction = mainWindow->actionHostWhiteboard;
+        QList<QAction*> actions = tb->actions();
+        int hostIdx = actions.indexOf(hostAction);
+        
+        if (hostIdx != -1) {
+            // Insert Join right after Host
+            if (hostIdx + 1 < actions.size()) {
+                tb->insertAction(actions.at(hostIdx + 1), joinAction);
+            } else {
+                tb->addAction(joinAction);
+            }
+        }
+
+        // Add spacer before the mode buttons (Board, Web, etc.) if not already pushed
         QWidget* spacer = new QWidget(mainWindow);
         spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
         spacer->setAttribute(Qt::WA_TransparentForMouseEvents);
-        // Insert the spacer action just before actionHostWhiteboard
-        QAction* hostAction = mainWindow->actionHostWhiteboard;
-        QToolBar* tb = mainWindow->boardToolBar;
-        for (QToolBar* bar : mainWindow->findChildren<QToolBar*>()) {
-            if (bar->actions().contains(hostAction)) {
-                bar->insertWidget(hostAction, spacer);
-                // Also ensure joinAction is there
-                bar->addAction(joinAction);
-                break;
-            }
-        }
+        tb->insertWidget(mainWindow->actionBoard, spacer);
+        
+        // Finally, add AI assistant at the very end
+        tb->addAction(mainWindow->actionAIAssistant);
     }
 
     // ── AI chat panel — docked at bottom ─────────────────────────────────────
