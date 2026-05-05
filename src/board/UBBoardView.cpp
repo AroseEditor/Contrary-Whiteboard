@@ -1435,6 +1435,13 @@ void UBBoardView::mouseReleaseEvent (QMouseEvent *event)
     QPointF eventPosition = event->localPos();
 #endif
 
+    if (event->button() == Qt::MiddleButton)
+    {
+        mMiddleButtonIsPressed = false;
+        setToolCursor(currentTool);
+        event->accept();
+    }
+
     if (currentTool == UBStylusTool::Selector)
     {
         if (bIsDesktop) {
@@ -1635,29 +1642,6 @@ void UBBoardView::mouseReleaseEvent (QMouseEvent *event)
                 }
             }
             mWidgetMoved = false;
-        }
-        QGraphicsView::mouseReleaseEvent (event);
-    }
-
-    if (event->button() == Qt::MiddleButton)
-    {
-        mMiddleButtonIsPressed = false;
-        setToolCursor(currentTool);
-        event->accept();
-    }
-}
-                getMovingItem()->setSelected(false);
-                setMovingItem(NULL);
-            }
-            mWidgetMoved = false;
-        }
-        else {
-            if (suspendedMousePressEvent) {
-                QGraphicsView::mousePressEvent(suspendedMousePressEvent);     // suspendedMousePressEvent is deleted by old Qt event loop
-                setMovingItem(NULL);
-                delete suspendedMousePressEvent;
-                suspendedMousePressEvent = NULL;
-            }
         }
         QGraphicsView::mouseReleaseEvent (event);
     }
