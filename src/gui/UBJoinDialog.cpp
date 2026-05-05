@@ -1,7 +1,8 @@
 #include "UBJoinDialog.h"
-#include <QPainter>
-#include <QStyle>
-#include <QIcon>
+#include <QVBoxLayout>
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QPushButton>
 
 UBJoinDialog::UBJoinDialog(QWidget* parent) : QDialog(parent)
 {
@@ -17,21 +18,21 @@ UBJoinDialog::UBJoinDialog(QWidget* parent) : QDialog(parent)
     title->setStyleSheet("font-size: 20px; font-weight: bold; color: #10b981; margin-bottom: 5px;");
     layout->addWidget(title);
 
-    m_urlInput = new QLineEdit(this);
-    m_urlInput->setPlaceholderText(tr("e.g., https://abcd-123.ngrok-free.app"));
-    m_urlInput->setStyleSheet("QLineEdit { background: #262626; border: 1px solid #404040; border-radius: 8px; padding: 10px; color: white; selection-background-color: #10b981; }"
+    m_urlEdit = new QLineEdit(this);
+    m_urlEdit->setPlaceholderText(tr("e.g., https://abcd-123.ngrok-free.app"));
+    m_urlEdit->setStyleSheet("QLineEdit { background: #262626; border: 1px solid #404040; border-radius: 8px; padding: 10px; color: white; selection-background-color: #10b981; }"
                               "QLineEdit:focus { border: 1px solid #10b981; }");
-    layout->addWidget(m_urlInput);
+    layout->addWidget(m_urlEdit);
 
     auto* nameTitle = new QLabel(tr("Your Name"), this);
     nameTitle->setStyleSheet("font-size: 14px; color: #a3a3a3;");
     layout->addWidget(nameTitle);
 
-    m_nameInput = new QLineEdit(this);
-    m_nameInput->setPlaceholderText(tr("Guest"));
-    m_nameInput->setStyleSheet("QLineEdit { background: #262626; border: 1px solid #404040; border-radius: 8px; padding: 10px; color: white; }"
+    m_nameEdit = new QLineEdit(this);
+    m_nameEdit->setPlaceholderText(tr("Guest"));
+    m_nameEdit->setStyleSheet("QLineEdit { background: #262626; border: 1px solid #404040; border-radius: 8px; padding: 10px; color: white; }"
                                "QLineEdit:focus { border: 1px solid #10b981; }");
-    layout->addWidget(m_nameInput);
+    layout->addWidget(m_nameEdit);
 
     layout->addStretch();
 
@@ -43,11 +44,11 @@ UBJoinDialog::UBJoinDialog(QWidget* parent) : QDialog(parent)
     layout->addWidget(joinBtn);
 
     connect(joinBtn, &QPushButton::clicked, this, &QDialog::accept);
-    connect(m_urlInput, &QLineEdit::returnPressed, this, &QDialog::accept);
+    connect(m_urlEdit, &QLineEdit::returnPressed, this, &QDialog::accept);
 }
 
 QString UBJoinDialog::url() const {
-    QString u = m_urlInput->text().trimmed();
+    QString u = m_urlEdit->text().trimmed();
     if (!u.startsWith("ws://") && !u.startsWith("wss://") && !u.startsWith("http")) {
         // Assume ngrok-free.app or similar
         u = "wss://" + u;
@@ -59,6 +60,6 @@ QString UBJoinDialog::url() const {
 }
 
 QString UBJoinDialog::userName() const {
-    QString n = m_nameInput->text().trimmed();
+    QString n = m_nameEdit->text().trimmed();
     return n.isEmpty() ? tr("Guest") : n;
 }
