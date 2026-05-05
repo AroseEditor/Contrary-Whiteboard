@@ -414,6 +414,34 @@ int UBApplication::exec(const QString& pFileToImport)
         UBApplication::showMessage(msg);
     });
 
+    // Join Collaboration
+    QAction* joinAction = new QAction(QIcon(":/images/toolbar/plus.png"), tr("Join"), this);
+    joinAction->setCheckable(true);
+    joinAction->setToolTip(tr("Join a collaboration session using a Room ID"));
+    mainWindow->boardToolBar->addAction(joinAction);
+    
+    connect(joinAction, &QAction::triggered, this, [sharingCtrl, joinAction, mainWindow]() {
+        if (sharingCtrl->isClient()) {
+            sharingCtrl->leaveSession();
+            joinAction->setChecked(false);
+            return;
+        }
+        
+        #include "gui/UBJoinDialog.h"
+        UBJoinDialog dlg(mainWindow);
+        if (dlg.exec() == QDialog::Accepted) {
+            sharingCtrl->joinSession(dlg.url(), dlg.userName());
+            joinAction->setChecked(true);
+        } else {
+            joinAction->setChecked(false);
+        }
+    });
+
+    connect(sharingCtrl, &UBSharingController::statusMessage, this, [joinAction](const QString& msg) {
+        UBApplication::showMessage(msg);
+        if (msg.contains("Disconnected")) joinAction->setChecked(false);
+    });
+
     // ── Push Host + AI buttons to the RIGHT side of the toolbar ──────────────
     {
         QWidget* spacer = new QWidget(mainWindow);
@@ -421,16 +449,15 @@ int UBApplication::exec(const QString& pFileToImport)
         spacer->setAttribute(Qt::WA_TransparentForMouseEvents);
         // Insert the spacer action just before actionHostWhiteboard
         QAction* hostAction = mainWindow->actionHostWhiteboard;
-        QToolBar* tb = mainWindow->boardToolBar; // or whatever the first toolbar is
-        // Find the first toolbar that contains actionHostWhiteboard
+        QToolBar* tb = mainWindow->boardToolBar;
         for (QToolBar* bar : mainWindow->findChildren<QToolBar*>()) {
             if (bar->actions().contains(hostAction)) {
                 bar->insertWidget(hostAction, spacer);
-                tb = bar;
+                // Also ensure joinAction is there
+                bar->addAction(joinAction);
                 break;
             }
         }
-        Q_UNUSED(tb)
     }
 
     // ── AI chat panel — docked at bottom ─────────────────────────────────────

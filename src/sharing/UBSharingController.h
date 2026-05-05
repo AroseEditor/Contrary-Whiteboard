@@ -71,11 +71,14 @@ public:
     explicit UBSharingController(QObject* parent = nullptr);
     ~UBSharingController();
     bool isHosting() const { return m_hosting; }
+    bool isClient() const { return m_isClient; }
 
 public slots:
     void toggleHosting();
+    void joinSession(const QString& url, const QString& name);
+    void leaveSession();
     void onHostDrawEvent(const QJsonObject& event);
-    void onHostViewportChanged(qreal x, qreal y, qreal scale);
+    void onHostViewportChanged();
     void onHostCursorMoved(const QPointF& scenePos);
 
 signals:
@@ -98,6 +101,12 @@ private slots:
     void onHostStroke(QPointF from, QPointF to);
     void onHostStrokeEnded();
 
+    // Client slots
+    void onClientSocketConnected();
+    void onClientSocketDisconnected();
+    void onClientMessageReceived(const QString& message);
+    void onClientSocketError(QAbstractSocket::SocketError error);
+
 private:
     QImage captureSnapshot() const;
     QByteArray snapshotJpeg(int quality) const;
@@ -115,6 +124,11 @@ private:
 
     QTimer* m_reconcileTimer    = nullptr;  // full snapshot every 3 s
     QTimer* m_cursorCleanupTimer= nullptr;
+
+    // Client mode
+    bool m_isClient = false;
+    QWebSocket* m_clientSocket = nullptr;
+    QString m_clientName;
 
     // Current host pen state (read when stroke occurs)
     QColor  m_hostPenColor { Qt::black };

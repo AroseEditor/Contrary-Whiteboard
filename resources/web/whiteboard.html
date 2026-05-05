@@ -37,8 +37,24 @@ body{background:#111827;color:#f3f4f6;font-family:'Inter',system-ui,sans-serif;o
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
 
 /* ── Page bar ── */
-#pagebar{padding:3px 12px;background:#111827;border-bottom:1px solid #1f2937;font-size:11px;color:#4b5563;flex-shrink:0}
+#pagebar{padding:3px 12px;background:#111827;border-bottom:1px solid #1f2937;font-size:11px;color:#4b5563;flex-shrink:0;display:flex;align-items:center;justify-content:center}
 #pageinfo{color:#6b7280;font-weight:600}
+
+/* ── Layout ── */
+#mainContainer{display:flex;flex:1;overflow:hidden}
+#sidebar{width:160px;background:#111827;border-right:1px solid #1f2937;display:flex;flex-direction:column;padding:12px 0;gap:8px;overflow-y:auto;z-index:50;transition:width .3s}
+#sidebar.collapsed{width:0;padding:0;border:none}
+.pageItem{padding:10px 16px;font-size:13px;color:#9ca3af;cursor:pointer;transition:.15s;display:flex;align-items:center;gap:10px;border-left:3px solid transparent}
+.pageItem:hover{background:rgba(255,255,255,.05);color:#fff}
+.pageItem.active{background:rgba(59,130,246,.1);color:#3b82f6;border-left-color:#3b82f6;font-weight:600}
+.pageItem svg{width:16px;height:16px}
+
+/* ── Zoom Controls ── */
+#zoomControls{position:absolute;bottom:24px;right:24px;display:flex;flex-direction:column;gap:4px;z-index:200}
+.zbtn{width:36px;height:36px;border-radius:10px;background:rgba(31,41,55,.9);border:1px solid #374151;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;backdrop-filter:blur(4px);transition:.15s}
+.zbtn:hover{background:#374151;border-color:#4b5563}
+.zbtn svg{width:20px;height:20px}
+#zoomVal{font-size:11px;color:#9ca3af;text-align:center;margin-top:2px}
 
 /* ── Canvas area ── */
 #wrap{flex:1;position:relative;overflow:hidden;touch-action:none}
@@ -97,11 +113,30 @@ canvas{position:absolute;top:0;left:0;display:block}
 </div>
 <div id="pagebar">📄 <span id="pageinfo">Page 1</span></div>
 
-<div id="wrap">
-  <canvas id="bg"></canvas>
-  <canvas id="hc"></canvas>
-  <canvas id="gc"></canvas>
-  <canvas id="cc"></canvas>
+<div id="mainContainer">
+  <div id="sidebar" id="pageSidebar">
+    <!-- Pages populated here -->
+  </div>
+  
+  <div id="wrap">
+    <canvas id="bg"></canvas>
+    <canvas id="hc"></canvas>
+    <canvas id="gc"></canvas>
+    <canvas id="cc"></canvas>
+    
+    <div id="zoomControls">
+      <button class="zbtn" onclick="zoom(1.2)" title="Zoom In">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
+      <button class="zbtn" onclick="zoom(0.8)" title="Zoom Out">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
+      <button class="zbtn" onclick="fitScene()" title="Reset View">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/></svg>
+      </button>
+      <div id="zoomVal">100%</div>
+    </div>
+  </div>
 </div>
 <div id="toast"></div>
 
@@ -277,7 +312,18 @@ function applyEv(ev) {
       break;
 
     case 'viewport':
-      if (followHost) { panX=ev.x; panY=ev.y; scale=ev.scale; redrawBg(); }
+      if (followHost) { 
+        const cz = ev.zoom || 1;
+        scale = cz;
+        panX  = bgC.width/2  - ev.cx * cz;
+        panY  = bgC.height/2 - ev.cy * cz;
+        updateZoomLabel();
+        redrawBg(); 
+      }
+      break;
+
+    case 'page_count':
+      updateSidebar(ev.count, ev.current);
       break;
 
     case 'clear':
@@ -287,8 +333,32 @@ function applyEv(ev) {
   }
 }
 
+function updateSidebar(count, current) {
+  const sb = document.getElementById('sidebar');
+  sb.innerHTML = '';
+  for (let i = 0; i < count; i++) {
+    const item = document.createElement('div');
+    item.className = 'pageItem' + (i === current ? ' active' : '');
+    item.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> Page ${i+1}`;
+    item.onclick = () => requestPage(i);
+    sb.appendChild(item);
+  }
+}
+
+function requestPage(idx) {
+  if (followHost) {
+    toast("Following host - can't switch pages manually", 2000);
+    return;
+  }
+  send({type: 'request_page', pageIdx: idx});
+}
+
 function setPage(idx) {
   document.getElementById('pageinfo').textContent = 'Page '+(idx+1);
+  const items = document.querySelectorAll('.pageItem');
+  items.forEach((it, i) => {
+    it.classList.toggle('active', i === idx);
+  });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -349,6 +419,21 @@ function toggleFollow() {
   followHost=!followHost;
   document.getElementById('btn-follow').classList.toggle('factive',followHost);
   toast(followHost?'📍 Following host':'🔓 Free navigation',2000);
+  if (followHost) send({type: 'follow_me'}); // Notify host we want viewport updates
+}
+function zoom(f) {
+  const cx = bgC.width / 2;
+  const cy = bgC.height / 2;
+  const oldS = scale;
+  scale = Math.max(.05, Math.min(20, scale * f));
+  const realF = scale / oldS;
+  panX = cx - (cx - panX) * realF;
+  panY = cy - (cy - panY) * realF;
+  updateZoomLabel();
+  redrawBg();
+}
+function updateZoomLabel() {
+  document.getElementById('zoomVal').textContent = Math.round(scale * 100) + '%';
 }
 function clearMe() {
   gX.clearRect(0,0,gC.width,gC.height);
@@ -363,6 +448,8 @@ document.addEventListener('keydown', e=>{
   if(k==='t') setTool('text');
   if(k==='f') toggleFollow();
   if(k==='x') clearMe();
+  if(k==='=' || k==='+') zoom(1.2);
+  if(k==='-' || k==='_') zoom(0.8);
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
