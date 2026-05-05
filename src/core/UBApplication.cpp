@@ -58,6 +58,7 @@
 
 #include "gui/UBMainWindow.h"
 #include "gui/UBResources.h"
+#include "gui/UBJoinDialog.h"
 #include "gui/UBThumbnail.h"
 #include "gui/UBStartupHintsPalette.h"
 
@@ -420,15 +421,14 @@ int UBApplication::exec(const QString& pFileToImport)
     joinAction->setToolTip(tr("Join a collaboration session using a Room ID"));
     mainWindow->boardToolBar->addAction(joinAction);
     
-    connect(joinAction, &QAction::triggered, this, [sharingCtrl, joinAction, mainWindow]() {
+    connect(joinAction, &QAction::triggered, this, [sharingCtrl, joinAction]() {
         if (sharingCtrl->isClient()) {
             sharingCtrl->leaveSession();
             joinAction->setChecked(false);
             return;
         }
         
-        #include "gui/UBJoinDialog.h"
-        UBJoinDialog dlg(mainWindow);
+        UBJoinDialog dlg(UBApplication::mainWindow);
         if (dlg.exec() == QDialog::Accepted) {
             sharingCtrl->joinSession(dlg.url(), dlg.userName());
             joinAction->setChecked(true);
