@@ -17,7 +17,6 @@
 #include <QGraphicsTextItem>
 
 UBSharingController* UBSharingController::s_instance = nullptr;
-
 UBSharingController* UBSharingController::instance() { return s_instance; }
 
 UBSharingController::UBSharingController(QObject* parent) : QObject(parent)
@@ -26,7 +25,7 @@ UBSharingController::UBSharingController(QObject* parent) : QObject(parent)
 
     m_snapshotTimer = new QTimer(this);
     m_snapshotTimer->setSingleShot(true);
-    m_snapshotTimer->setInterval(250); // 4 fps max snapshot rate
+    m_snapshotTimer->setInterval(100); // 100 ms debounce → ~10 fps max
     connect(m_snapshotTimer, &QTimer::timeout, this, &UBSharingController::broadcastSnapshot);
 
     m_cursorCleanupTimer = new QTimer(this);
@@ -80,20 +79,84 @@ void UBSharingController::toggleHosting()
     m_ngrok->startTunnel(m_server->port());
 }
 
-// Connect to scene changes to trigger snapshot broadcast
+// ── Wire up scene signals + cursor relay ─────────────────────────────────────
 void UBSharingController::connectToScene()
 {
     if (!UBApplication::boardController) return;
+
+    // ── 1. Scene content changes → trigger snapshot broadcast ────────────────
     auto scene = UBApplication::boardController->activeScene();
-    if (!scene) return;
-    // QGraphicsScene::changed fires whenever items are added/moved/modified
-    connect(scene.get(), &QGraphicsScene::changed, this, [this](const QList<QRectF>&) {
-        if (m_hosting && m_server && m_server->clientCount() > 0)
-            m_snapshotTimer->start(); // debounce: restarts the 250ms window
-    }, Qt::UniqueConnection);
+    if (scene) {
+        connect(scene.get(), &QGraphicsScene::changed, this,
+                [this](const QList<QRectF>&) {
+                    if (m_hosting && m_server && m_server->clientCount() > 0)
+                        m_snapshotTimer->start(); // restart 100 ms window
+                }, Qt::UniqueConnection);
+    }
+
+    // ── 2. Page change → re-snapshot + tell clients about new page ───────────
+    connect(UBApplication::boardController, &UBBoardController::activeSceneChanged,
+            this, &UBSharingController::onPageChanged, Qt::UniqueConnection);
+
+    // ── 3. Host cursor relay via event-filter on board viewport ──────────────
+    UBBoardView* view = UBApplication::boardController->controlView();
+    if (view && view->viewport()) {
+        if (!m_cursorRelay) {
+            m_cursorRelay = new UBCursorRelay(this);
+            connect(m_cursorRelay, &UBCursorRelay::cursorMoved,
+                    this, [this, view](const QPoint& vp) {
+                        // viewport pixel → scene coords
+                        QPointF sp = view->mapToScene(vp);
+                        onHostCursorMoved(sp);
+                    });
+        }
+        view->viewport()->installEventFilter(m_cursorRelay);
+        view->viewport()->setMouseTracking(true);
+    }
 }
 
-// ── Host → Guests: canvas snapshot ───────────────────────────────────────────
+// ── Host switched to a different page ────────────────────────────────────────
+void UBSharingController::onPageChanged()
+{
+    if (!m_server || !m_hosting) return;
+
+    // Re-attach scene changed signal to the NEW scene
+    auto scene = UBApplication::boardController
+                     ? UBApplication::boardController->activeScene()
+                     : nullptr;
+    if (scene) {
+        connect(scene.get(), &QGraphicsScene::changed, this,
+                [this](const QList<QRectF>&) {
+                    if (m_hosting && m_server && m_server->clientCount() > 0)
+                        m_snapshotTimer->start();
+                }, Qt::UniqueConnection);
+    }
+
+    // Broadcast a full init packet (new snapshot + scene rect + page index)
+    if (m_server->clientCount() == 0) return;
+
+    QByteArray jpg = snapshotJpeg(75);
+    if (jpg.isEmpty()) return;
+
+    QRectF sr;
+    if (UBApplication::boardController && UBApplication::boardController->activeScene())
+        sr = UBApplication::boardController->activeScene()->sceneRect();
+
+    int pageIdx = UBApplication::boardController
+                      ? UBApplication::boardController->activeSceneIndex() : 0;
+
+    QJsonObject ev;
+    ev["type"]    = "page_change";
+    ev["canvas"]  = QString::fromLatin1(jpg.toBase64());
+    ev["sceneW"]  = sr.width();
+    ev["sceneH"]  = sr.height();
+    ev["sceneX"]  = sr.x();
+    ev["sceneY"]  = sr.y();
+    ev["pageIdx"] = pageIdx;
+    m_server->broadcast(ev);
+}
+
+// ── Snapshot helpers ─────────────────────────────────────────────────────────
 QImage UBSharingController::captureSnapshot() const
 {
     if (!UBApplication::boardController) return {};
@@ -103,7 +166,6 @@ QImage UBSharingController::captureSnapshot() const
     QRectF sr = scene->sceneRect();
     if (sr.isEmpty()) return {};
 
-    // Scale to max 1600px on the long side, JPEG for speed
     const double MAX = 1600.0;
     double s = qMin(1.0, qMin(MAX / sr.width(), MAX / sr.height()));
     QSize sz(qMax(1, (int)(sr.width() * s)), qMax(1, (int)(sr.height() * s)));
@@ -117,52 +179,57 @@ QImage UBSharingController::captureSnapshot() const
     return img;
 }
 
-void UBSharingController::broadcastSnapshot()
+QByteArray UBSharingController::snapshotJpeg(int quality) const
 {
-    if (!m_server || !m_hosting || m_server->clientCount() == 0) return;
     QImage img = captureSnapshot();
-    if (img.isNull()) return;
-
+    if (img.isNull()) return {};
     QByteArray jpg;
     QBuffer buf(&jpg);
     buf.open(QIODevice::WriteOnly);
-    img.save(&buf, "JPEG", 70);
+    img.save(&buf, "JPEG", quality);
+    return jpg;
+}
+
+void UBSharingController::broadcastSnapshot()
+{
+    if (!m_server || !m_hosting || m_server->clientCount() == 0) return;
+
+    QByteArray jpg = snapshotJpeg(70);
+    if (jpg.isEmpty()) return;
 
     QJsonObject ev;
     ev["type"] = "snapshot";
-    ev["w"]    = img.width();
-    ev["h"]    = img.height();
     ev["data"] = QString::fromLatin1(jpg.toBase64());
     m_server->broadcast(ev);
 }
 
-// Sends full snapshot + scene dimensions to a newly connected guest
-void UBSharingController::onNewGuest(QWebSocket* client)
+void UBSharingController::sendInitTo(QWebSocket* client)
 {
-    if (!m_server) return;
-    QImage img = captureSnapshot();
-    if (img.isNull()) return;
+    QByteArray jpg = snapshotJpeg(80);
+    if (jpg.isEmpty()) return;
 
-    QByteArray jpg;
-    QBuffer buf(&jpg);
-    buf.open(QIODevice::WriteOnly);
-    img.save(&buf, "JPEG", 80);
-
-    // Also send scene rect so browser sets coordinate system correctly
     QRectF sr;
     if (UBApplication::boardController && UBApplication::boardController->activeScene())
         sr = UBApplication::boardController->activeScene()->sceneRect();
 
+    int pageIdx = UBApplication::boardController
+                      ? UBApplication::boardController->activeSceneIndex() : 0;
+
     QJsonObject ev;
     ev["type"]    = "init";
     ev["canvas"]  = QString::fromLatin1(jpg.toBase64());
-    ev["w"]       = img.width();
-    ev["h"]       = img.height();
     ev["sceneW"]  = sr.width();
     ev["sceneH"]  = sr.height();
     ev["sceneX"]  = sr.x();
     ev["sceneY"]  = sr.y();
+    ev["pageIdx"] = pageIdx;
     m_server->sendTo(client, ev);
+}
+
+void UBSharingController::onNewGuest(QWebSocket* client)
+{
+    if (!m_server) return;
+    sendInitTo(client);
 }
 
 // ── Guest → Host: apply to Qt canvas ─────────────────────────────────────────
@@ -173,6 +240,7 @@ void UBSharingController::applyGuestEventToScene(const QJsonObject& ev)
     if (!scene) return;
 
     const QString type = ev["type"].toString();
+    const QString guestId = ev["id"].toString("guest");
 
     if (type == "draw") {
         QColor color(ev["color"].toString("#ffffff"));
@@ -182,26 +250,31 @@ void UBSharingController::applyGuestEventToScene(const QJsonObject& ev)
 
         QPen pen(color, width, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin);
         auto* item = scene->addLine(x1, y1, x2, y2, pen);
-        item->setData(0, QStringLiteral("guest")); // mark as guest-drawn
+        item->setData(0, guestId); // ownership tag
+        item->setFlag(QGraphicsItem::ItemIsSelectable, false); // host can't select guest items
     }
     else if (type == "erase") {
-        // Erase by painting a white-filled circle at the erase position
+        // Soft erase: white circle above guest strokes
         double x = ev["x"].toDouble(), y = ev["y"].toDouble();
         double r = ev["radius"].toDouble(20.0);
-        QBrush brush(Qt::white);
-        QPen pen(Qt::NoPen);
-        auto* item = scene->addEllipse(x - r, y - r, r * 2, r * 2, pen, brush);
-        item->setZValue(1000); // above strokes
-        item->setData(0, QStringLiteral("guest"));
+        auto* item = scene->addEllipse(x - r, y - r, r * 2, r * 2, QPen(Qt::NoPen), QBrush(Qt::white));
+        item->setZValue(1000);
+        item->setData(0, guestId);
+        item->setFlag(QGraphicsItem::ItemIsSelectable, false);
     }
     else if (type == "text") {
         double x = ev["x"].toDouble(), y = ev["y"].toDouble();
         QString content = ev["content"].toString();
         QColor color(ev["color"].toString("#ffffff"));
+        int size = ev["size"].toInt(18);
         auto* item = scene->addText(content);
         item->setPos(x, y);
         item->setDefaultTextColor(color);
-        item->setData(0, QStringLiteral("guest"));
+        QFont f = item->font();
+        f.setPointSize(size);
+        item->setFont(f);
+        item->setData(0, guestId);
+        item->setFlag(QGraphicsItem::ItemIsSelectable, false);
     }
 }
 
@@ -215,8 +288,10 @@ void UBSharingController::onClientEvent(const QJsonObject& ev, QWebSocket* /*sen
         const QString color = ev["color"].toString("#f90");
         m_guestLastSeen[id] = QDateTime::currentMSecsSinceEpoch();
         updateGuestCursorOverlay(id, ev["x"].toDouble(), ev["y"].toDouble(), color);
+    } else if (type == "hello") {
+        // new guest introduced themselves — nothing extra to do
     } else {
-        // draw / erase / text → apply to Qt canvas and relay is already done by server
+        // draw / erase / text → apply to Qt canvas; server already relays to other guests
         applyGuestEventToScene(ev);
     }
 
@@ -227,7 +302,7 @@ void UBSharingController::onClientConnected(int total)
 {
     emit clientCountChanged(total);
     emit statusMessage(tr("%1 guest(s) connected").arg(total));
-    connectToScene(); // re-connect in case scene was swapped
+    connectToScene(); // re-wire in case scene was swapped since last connect
 }
 
 void UBSharingController::onClientDisconnected(int total)
@@ -240,7 +315,7 @@ void UBSharingController::onHostCursorMoved(const QPointF& scenePos)
 {
     if (!m_server || !m_hosting) return;
     qint64 now = QDateTime::currentMSecsSinceEpoch();
-    if (now - m_lastHostCursorMs < 50) return;
+    if (now - m_lastHostCursorMs < 40) return; // ~25 fps
     m_lastHostCursorMs = now;
 
     QJsonObject ev;
@@ -252,7 +327,6 @@ void UBSharingController::onHostCursorMoved(const QPointF& scenePos)
     m_server->broadcast(ev);
 }
 
-// ── Host draw event (called from board controller) → guests ──────────────────
 void UBSharingController::onHostDrawEvent(const QJsonObject& ev)
 {
     if (m_server && m_hosting) m_server->broadcast(ev);
@@ -284,7 +358,7 @@ void UBSharingController::onNgrokError(const QString& err)
     if (m_hosting) toggleHosting();
 }
 
-// ── Guest cursor overlays on Qt host view ─────────────────────────────────────
+// ── Guest cursor overlays on Qt host view ────────────────────────────────────
 void UBSharingController::updateGuestCursorOverlay(const QString& id, qreal x, qreal y, const QString& color)
 {
     if (!UBApplication::boardController) return;

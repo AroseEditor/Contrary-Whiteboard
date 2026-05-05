@@ -19,7 +19,7 @@ struct GuestCursorInfo {
     QLabel* label = nullptr;
 };
 
-// Event filter to relay host mouse position to guests
+// Event filter — relays host viewport mouse moves to guests as cursor events
 class UBCursorRelay : public QObject {
     Q_OBJECT
 public:
@@ -30,7 +30,7 @@ protected:
     bool eventFilter(QObject*, QEvent* e) override {
         if (e->type() == QEvent::MouseMove)
             emit cursorMoved(static_cast<QMouseEvent*>(e)->pos());
-        return false;
+        return false; // never consume
     }
 };
 
@@ -65,9 +65,12 @@ private slots:
     void onNewGuest(QWebSocket* client);
     void broadcastSnapshot();
     void cleanupStaleCursors();
+    void onPageChanged();   // host switched page → rebroadcast
 
 private:
     QImage captureSnapshot() const;
+    QByteArray snapshotJpeg(int quality = 70) const;
+    void sendInitTo(QWebSocket* client);           // full init packet
     void applyGuestEventToScene(const QJsonObject& ev);
     void updateGuestCursorOverlay(const QString& id, qreal x, qreal y, const QString& color);
     void removeGuestCursorOverlay(const QString& id);
@@ -78,8 +81,10 @@ private:
     UBSharingServer* m_server = nullptr;
     UBNgrokManager*  m_ngrok  = nullptr;
 
-    QTimer* m_snapshotTimer     = nullptr;
-    QTimer* m_cursorCleanupTimer= nullptr;
+    QTimer* m_snapshotTimer      = nullptr;
+    QTimer* m_cursorCleanupTimer = nullptr;
+
+    UBCursorRelay* m_cursorRelay = nullptr;   // installed on board viewport
 
     QHash<QString, GuestCursorInfo> m_guestCursors;
     QHash<QString, qint64>          m_guestLastSeen;

@@ -9,28 +9,45 @@
   body { background: #1a1a2e; color: #eee; font-family: 'Inter', system-ui, sans-serif; overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
 
   #toolbar {
-    display: flex; align-items: center; gap: 8px;
-    padding: 6px 12px; background: rgba(30,30,60,0.97);
-    border-bottom: 1px solid #333; z-index: 100; flex-shrink: 0; flex-wrap: wrap;
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 10px; background: rgba(20,20,45,0.98);
+    border-bottom: 1px solid #2a2a5a; z-index: 100; flex-shrink: 0; flex-wrap: wrap;
   }
   .tool-btn {
     display: flex; flex-direction: column; align-items: center;
-    gap: 2px; padding: 6px 10px; border-radius: 8px;
+    gap: 2px; padding: 5px 9px; border-radius: 8px;
     border: 1.5px solid transparent; cursor: pointer;
     background: rgba(255,255,255,0.05);
-    color: #ddd; font-size: 10px; transition: all 0.15s;
+    color: #ccc; font-size: 10px; transition: all 0.15s;
     user-select: none; -webkit-user-select: none;
   }
-  .tool-btn svg { width: 20px; height: 20px; }
-  .tool-btn:hover { background: rgba(255,255,255,0.12); border-color: #555; }
-  .tool-btn.active { background: rgba(66,133,244,0.25); border-color: #4285f4; color: #fff; }
+  .tool-btn svg { width: 18px; height: 18px; }
+  .tool-btn:hover { background: rgba(255,255,255,0.12); border-color: #555; color: #fff; }
+  .tool-btn.active { background: rgba(66,133,244,0.28); border-color: #4285f4; color: #fff; }
+  .tool-btn.follow-active { background: rgba(52,211,153,0.25); border-color: #34d399; color: #34d399; }
 
-  #colorPicker { width: 32px; height: 32px; border-radius: 50%; border: 2px solid #555; cursor: pointer; background: none; padding: 0; }
-  #sizeRange { width: 80px; accent-color: #4285f4; }
+  #colorPicker { width: 28px; height: 28px; border-radius: 50%; border: 2px solid #555; cursor: pointer; background: none; padding: 0; }
+  #sizeRange { width: 72px; accent-color: #4285f4; }
+  .size-label { font-size: 10px; color: #888; white-space: nowrap; }
+
+  /* Text size +/- */
+  .sz-btn { padding: 3px 7px; border-radius: 5px; border: 1px solid #444; background: rgba(255,255,255,0.06); color: #ccc; cursor: pointer; font-size: 13px; line-height: 1; }
+  .sz-btn:hover { background: rgba(255,255,255,0.14); color: #fff; }
+  #textSizeDisplay { font-size: 11px; color: #aaa; min-width: 20px; text-align: center; }
+
   #statusBar { margin-left: auto; font-size: 11px; color: #aaa; display: flex; align-items: center; gap: 8px; }
   #connDot { width: 8px; height: 8px; border-radius: 50%; background: #f44; display: inline-block; }
-  #connDot.connected { background: #4f4; }
-  .sep { width: 1px; height: 24px; background: #444; margin: 0 4px; }
+  #connDot.connected { background: #4f4; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+  .sep { width: 1px; height: 22px; background: #333; margin: 0 2px; }
+
+  #pageBar {
+    display: flex; align-items: center; gap: 6px;
+    padding: 4px 10px; background: rgba(15,15,35,0.98);
+    border-bottom: 1px solid #222; z-index: 99; flex-shrink: 0;
+    font-size: 11px; color: #888;
+  }
+  #pageInfo { font-weight: 600; color: #aaa; }
 
   #canvasWrap { flex: 1; position: relative; overflow: hidden; touch-action: none; }
   canvas { position: absolute; top: 0; left: 0; display: block; }
@@ -40,21 +57,17 @@
 
   #toast {
     position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-    background: rgba(30,30,60,0.92); border: 1px solid #4285f4;
+    background: rgba(20,20,50,0.95); border: 1px solid #4285f4;
     border-radius: 12px; padding: 10px 22px; font-size: 13px;
     pointer-events: none; opacity: 0; transition: opacity 0.3s; z-index: 999;
   }
   #toast.show { opacity: 1; }
-  #followBadge {
-    display: none; position: fixed; top: 60px; right: 16px;
-    background: rgba(66,133,244,0.8); border-radius: 20px;
-    padding: 4px 14px; font-size: 11px; z-index: 200;
-  }
 </style>
 </head>
 <body>
 
 <div id="toolbar">
+  <!-- Draw tools -->
   <button class="tool-btn active" id="btn-draw" title="Draw (D)" onclick="setTool('draw')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>Draw
   </button>
@@ -64,18 +77,47 @@
   <button class="tool-btn" id="btn-text" title="Text (T)" onclick="setTool('text')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>Text
   </button>
+
   <div class="sep"></div>
+
+  <!-- Colour + brush size -->
   <input type="color" id="colorPicker" value="#2563eb" title="Stroke colour">
-  <input type="range" id="sizeRange" min="1" max="40" value="4" title="Brush size">
+  <input type="range" id="sizeRange" min="1" max="40" value="4" title="Brush / text size"
+         oninput="onSizeChange()">
+  <span class="size-label">Size: <span id="sizeVal">4</span></span>
+
   <div class="sep"></div>
-  <button class="tool-btn" title="Clear my strokes" onclick="clearMyStrokes()">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>Clear
+
+  <!-- Text size quick buttons -->
+  <button class="sz-btn" title="Smaller text" onclick="adjustTextSize(-2)">A−</button>
+  <span id="textSizeDisplay">18</span>
+  <button class="sz-btn" title="Larger text"  onclick="adjustTextSize(+2)">A+</button>
+
+  <div class="sep"></div>
+
+  <!-- Clear my strokes -->
+  <button class="tool-btn" title="Clear my strokes (X)" onclick="clearMyStrokes()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M9 6V4h6v2"/></svg>Clear
   </button>
+
   <div class="sep"></div>
+
+  <!-- Follow host -->
+  <button class="tool-btn" id="btn-follow" title="Follow host view (F)" onclick="toggleFollow()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/></svg>Follow
+  </button>
+
   <div id="statusBar">
     <span id="connDot"></span>
     <span id="statusTxt">Connecting…</span>
   </div>
+</div>
+
+<!-- Page indicator bar -->
+<div id="pageBar">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+  <span id="pageInfo">Page 1</span>
+  <span style="color:#555">· Host's current page is shown automatically</span>
 </div>
 
 <div id="canvasWrap">
@@ -85,7 +127,6 @@
 </div>
 
 <div id="toast"></div>
-<div id="followBadge">📍 Following host</div>
 
 <script>
 // ─────────────────────────────────────────────────────────────────────────────
@@ -102,8 +143,9 @@ let isPanning = false, panStartX = 0, panStartY = 0;
 let followHost = false;
 let ws = null;
 let peers = {};
+let textSize = 18;  // current text font size (pt)
 
-// Scene coordinate space sent by host on init
+// Scene coordinate space sent by host on init / page_change
 let sceneW = 1920, sceneH = 1080, sceneX = 0, sceneY = 0;
 
 const bgCanvas   = document.getElementById('bgCanvas');
@@ -121,11 +163,11 @@ function resizeCanvases() {
   const w = wrap.clientWidth, h = wrap.clientHeight;
   [bgCanvas, drawCanvas, curCanvas].forEach(c => { c.width = w; c.height = h; });
   fitScene();
+  redrawBg();
 }
 window.addEventListener('resize', resizeCanvases);
 resizeCanvases();
 
-// Fit the scene to the viewport (called after init)
 function fitScene() {
   if (!sceneW || !sceneH) return;
   const vw = bgCanvas.width, vh = bgCanvas.height;
@@ -143,21 +185,43 @@ function setTool(t) {
   document.getElementById('btn-' + t)?.classList.add('active');
 }
 document.addEventListener('keydown', e => {
-  if (e.target.tagName === 'INPUT') return;
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
   if (e.key === 'd' || e.key === 'D') setTool('draw');
   if (e.key === 'e' || e.key === 'E') setTool('erase');
   if (e.key === 't' || e.key === 'T') setTool('text');
+  if (e.key === 'f' || e.key === 'F') toggleFollow();
+  if (e.key === 'x' || e.key === 'X') clearMyStrokes();
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Coordinate helpers — canvas pixels ↔ scene (Qt) coords
+// Size controls
+// ─────────────────────────────────────────────────────────────────────────────
+function onSizeChange() {
+  document.getElementById('sizeVal').textContent = document.getElementById('sizeRange').value;
+}
+function adjustTextSize(delta) {
+  textSize = Math.max(8, Math.min(120, textSize + delta));
+  document.getElementById('textSizeDisplay').textContent = textSize;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Follow host
+// ─────────────────────────────────────────────────────────────────────────────
+function toggleFollow() {
+  followHost = !followHost;
+  const btn = document.getElementById('btn-follow');
+  btn.classList.toggle('follow-active', followHost);
+  btn.classList.toggle('active', false);
+  toast(followHost ? '📍 Following host view' : '🔓 Free navigation', 2000);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Coordinate helpers — canvas pixels ↔ scene coords
 // ─────────────────────────────────────────────────────────────────────────────
 function toScene(cx, cy) {
-  // canvas pixel → scene coord
   return { x: (cx - panX) / scale + sceneX, y: (cy - panY) / scale + sceneY };
 }
 function toCanvas(sx, sy) {
-  // scene coord → canvas pixel
   return { x: (sx - sceneX) * scale + panX, y: (sy - sceneY) * scale + panY };
 }
 
@@ -173,8 +237,7 @@ function drawLine(ctx, x1, y1, x2, y2, color, width) {
   applySceneTransform(ctx);
   ctx.strokeStyle = color;
   ctx.lineWidth   = width;
-  ctx.lineCap     = 'round';
-  ctx.lineJoin    = 'round';
+  ctx.lineCap = ctx.lineJoin = 'round';
   ctx.beginPath();
   ctx.moveTo(x1, y1);
   ctx.lineTo(x2, y2);
@@ -202,7 +265,7 @@ function drawText(ctx, x, y, text, color, size) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Redraw background snapshot with current transform
+// Background snapshot
 // ─────────────────────────────────────────────────────────────────────────────
 let bgImage = null;
 function redrawBg() {
@@ -214,61 +277,92 @@ function redrawBg() {
   bgCtx.restore();
 }
 
-function loadSnapshot(b64) {
+function loadSnapshot(b64, then) {
   const img = new Image();
-  img.onload = () => {
-    bgImage = img;
-    redrawBg();
-  };
+  img.onload = () => { bgImage = img; redrawBg(); if (then) then(); };
   img.src = 'data:image/jpeg;base64,' + b64;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Apply events from server
+// Apply events from host / server
 // ─────────────────────────────────────────────────────────────────────────────
+function applySceneInfo(ev) {
+  if (ev.sceneW) {
+    sceneW = ev.sceneW; sceneH = ev.sceneH;
+    sceneX = ev.sceneX || 0; sceneY = ev.sceneY || 0;
+  }
+}
+
 function applyEvent(ev) {
   switch (ev.type) {
     case 'init':
-      // Set scene coordinate space from host
-      if (ev.sceneW) { sceneW = ev.sceneW; sceneH = ev.sceneH; sceneX = ev.sceneX || 0; sceneY = ev.sceneY || 0; }
+      applySceneInfo(ev);
       fitScene();
+      drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height); // clear client strokes on new session
       loadSnapshot(ev.canvas);
+      updatePageInfo(ev.pageIdx || 0);
       break;
 
     case 'snapshot':
-      // Continuous update of host canvas
+      // Incremental update from host — keep client strokes, just refresh bg
       loadSnapshot(ev.data);
       break;
 
+    case 'page_change':
+      // Host navigated to a different page
+      applySceneInfo(ev);
+      fitScene();
+      drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height); // clear MY strokes (new page)
+      loadSnapshot(ev.canvas, () => redrawBg());
+      updatePageInfo(ev.pageIdx || 0);
+      peers = {}; // clear stale cursors
+      renderCursors();
+      toast('📄 Host moved to page ' + ((ev.pageIdx || 0) + 1), 2500);
+      break;
+
     case 'draw':
-      drawLine(drawCtx, ev.x, ev.y, ev.x2, ev.y2, ev.color || '#fff', ev.width || 3);
+      // Another guest's stroke relayed by server (NOT host — host sends snapshots)
+      if (ev.id !== ME)
+        drawLine(drawCtx, ev.x, ev.y, ev.x2, ev.y2, ev.color || '#fff', ev.width || 3);
       break;
 
     case 'erase':
-      eraseAt(drawCtx, ev.x, ev.y, ev.radius || 20);
+      if (ev.id !== ME)
+        eraseAt(drawCtx, ev.x, ev.y, ev.radius || 20);
       break;
 
     case 'text':
-      drawText(drawCtx, ev.x, ev.y, ev.content, ev.color || '#fff', ev.size);
+      if (ev.id !== ME)
+        drawText(drawCtx, ev.x, ev.y, ev.content, ev.color || '#fff', ev.size || 18);
       break;
 
     case 'cursor':
-      peers[ev.id] = { x: ev.x, y: ev.y, color: ev.color || '#f90', name: ev.id };
+      // Both host and other guest cursors shown
+      peers[ev.id] = { x: ev.x, y: ev.y, color: ev.color || '#f90',
+                       isHost: ev.id === 'host', name: ev.id === 'host' ? 'Host' : ev.id };
       renderCursors();
       break;
 
     case 'viewport':
+      // Host's viewport changed — apply only if following
       if (followHost) {
-        // host sends scene-space pan/scale
         panX = ev.x; panY = ev.y; scale = ev.scale;
         redrawBg();
       }
       break;
 
     case 'clear':
-      drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+      if (ev.id !== ME)
+        drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
       break;
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Page indicator
+// ─────────────────────────────────────────────────────────────────────────────
+function updatePageInfo(idx) {
+  document.getElementById('pageInfo').textContent = 'Page ' + (idx + 1);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -277,19 +371,29 @@ function applyEvent(ev) {
 function renderCursors() {
   curCtx.clearRect(0, 0, curCanvas.width, curCanvas.height);
   for (const id in peers) {
-    const p   = peers[id];
-    const cp  = toCanvas(p.x, p.y);
+    const p  = peers[id];
+    const cp = toCanvas(p.x, p.y);
     curCtx.save();
+
+    // Circle
     curCtx.beginPath();
-    curCtx.arc(cp.x, cp.y, 7, 0, Math.PI * 2);
+    curCtx.arc(cp.x, cp.y, p.isHost ? 8 : 6, 0, Math.PI * 2);
     curCtx.fillStyle   = p.color;
     curCtx.fill();
     curCtx.strokeStyle = '#fff';
-    curCtx.lineWidth   = 1.5;
+    curCtx.lineWidth   = p.isHost ? 2 : 1.5;
     curCtx.stroke();
+
+    // Label
+    const label = p.isHost ? '👑 Host' : p.name;
+    curCtx.font        = p.isHost ? 'bold 12px Inter, sans-serif' : 'bold 11px Inter, sans-serif';
     curCtx.fillStyle   = '#fff';
-    curCtx.font        = 'bold 11px Inter, sans-serif';
-    curCtx.fillText(id, cp.x + 10, cp.y + 4);
+    const tw = curCtx.measureText(label).width;
+    curCtx.fillStyle = 'rgba(0,0,0,0.55)';
+    curCtx.fillRect(cp.x + 11, cp.y - 14, tw + 8, 16);
+    curCtx.fillStyle = p.isHost ? '#93c5fd' : '#fff';
+    curCtx.fillText(label, cp.x + 15, cp.y - 2);
+
     curCtx.restore();
   }
 }
@@ -297,7 +401,7 @@ function renderCursors() {
 let lastCursorSend = 0;
 function broadcastCursor(sx, sy) {
   const now = Date.now();
-  if (now - lastCursorSend < 50) return;
+  if (now - lastCursorSend < 40) return; // ~25 fps
   lastCursorSend = now;
   send({ type: 'cursor', x: sx, y: sy, id: ME, color: MY_COLOR });
 }
@@ -316,8 +420,7 @@ function onPointerDown(e) {
     isPanning = true;
     const pos = getCanvasPos(e);
     panStartX = pos.x - panX; panStartY = pos.y - panY;
-    followHost = false;
-    document.getElementById('followBadge').style.display = 'none';
+    if (followHost) { followHost = false; document.getElementById('btn-follow').classList.remove('follow-active'); }
     return;
   }
   e.preventDefault();
@@ -329,8 +432,9 @@ function onPointerDown(e) {
   if (tool === 'text') {
     const txt = prompt('Enter text:');
     if (txt) {
-      drawText(drawCtx, sp.x, sp.y, txt, document.getElementById('colorPicker').value, 18);
-      send({ type: 'text', x: sp.x, y: sp.y, content: txt, color: document.getElementById('colorPicker').value, size: 18 });
+      const color = document.getElementById('colorPicker').value;
+      drawText(drawCtx, sp.x, sp.y, txt, color, textSize);
+      send({ type: 'text', x: sp.x, y: sp.y, content: txt, color, size: textSize, id: ME });
     }
     drawing = false;
   }
@@ -355,10 +459,10 @@ function onPointerMove(e) {
 
   if (tool === 'draw') {
     drawLine(drawCtx, lastX, lastY, sp.x, sp.y, color, size);
-    send({ type: 'draw', x: lastX, y: lastY, x2: sp.x, y2: sp.y, color, width: size });
+    send({ type: 'draw', x: lastX, y: lastY, x2: sp.x, y2: sp.y, color, width: size, id: ME });
   } else if (tool === 'erase') {
     eraseAt(drawCtx, sp.x, sp.y, size * 3);
-    send({ type: 'erase', x: sp.x, y: sp.y, radius: size * 3 });
+    send({ type: 'erase', x: sp.x, y: sp.y, radius: size * 3, id: ME });
   }
 
   lastX = sp.x; lastY = sp.y;
@@ -374,11 +478,11 @@ function touchDist(e) {
   return Math.hypot(dx, dy);
 }
 
-drawCanvas.addEventListener('pointerdown',  onPointerDown,  { passive: false });
-drawCanvas.addEventListener('pointermove',  onPointerMove,  { passive: false });
-drawCanvas.addEventListener('pointerup',    onPointerUp);
-drawCanvas.addEventListener('pointercancel',onPointerUp);
-drawCanvas.addEventListener('contextmenu',  e => e.preventDefault());
+drawCanvas.addEventListener('pointerdown',   onPointerDown,  { passive: false });
+drawCanvas.addEventListener('pointermove',   onPointerMove,  { passive: false });
+drawCanvas.addEventListener('pointerup',     onPointerUp);
+drawCanvas.addEventListener('pointercancel', onPointerUp);
+drawCanvas.addEventListener('contextmenu',   e => e.preventDefault());
 
 drawCanvas.addEventListener('touchstart', e => {
   if (e.touches.length === 2) initDist = touchDist(e);
@@ -388,15 +492,14 @@ drawCanvas.addEventListener('touchstart', e => {
 drawCanvas.addEventListener('touchmove', e => {
   if (e.touches.length === 2) {
     const d = touchDist(e);
-    const center = {
-      x: (e.touches[0].clientX + e.touches[1].clientX) / 2 - bgCanvas.getBoundingClientRect().left,
-      y: (e.touches[0].clientY + e.touches[1].clientY) / 2 - bgCanvas.getBoundingClientRect().top
-    };
-    const factor = d / initDist;
+    const r = bgCanvas.getBoundingClientRect();
+    const cx = (e.touches[0].clientX + e.touches[1].clientX) / 2 - r.left;
+    const cy = (e.touches[0].clientY + e.touches[1].clientY) / 2 - r.top;
+    const f  = d / initDist;
     initDist = d;
-    panX = center.x - (center.x - panX) * factor;
-    panY = center.y - (center.y - panY) * factor;
-    scale = Math.max(0.1, Math.min(8, scale * factor));
+    panX = cx - (cx - panX) * f;
+    panY = cy - (cy - panY) * f;
+    scale = Math.max(0.1, Math.min(8, scale * f));
     redrawBg();
     return;
   }
@@ -408,26 +511,19 @@ drawCanvas.addEventListener('touchend', onPointerUp);
 drawCanvas.addEventListener('wheel', e => {
   e.preventDefault();
   const pos = getCanvasPos(e);
-  const factor = e.deltaY > 0 ? 0.9 : 1.1;
-  scale = Math.max(0.1, Math.min(8, scale * factor));
-  panX = pos.x - (pos.x - panX) * factor;
-  panY = pos.y - (pos.y - panY) * factor;
+  const f = e.deltaY > 0 ? 0.9 : 1.1;
+  scale = Math.max(0.1, Math.min(8, scale * f));
+  panX = pos.x - (pos.x - panX) * f;
+  panY = pos.y - (pos.y - panY) * f;
   redrawBg();
 }, { passive: false });
-
-// Double-tap to follow host
-drawCanvas.addEventListener('dblclick', () => {
-  followHost = !followHost;
-  document.getElementById('followBadge').style.display = followHost ? 'block' : 'none';
-  toast(followHost ? 'Following host view' : 'Stopped following host');
-});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Clear my strokes
 // ─────────────────────────────────────────────────────────────────────────────
 function clearMyStrokes() {
   drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
-  send({ type: 'clear' });
+  send({ type: 'clear', id: ME });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -448,7 +544,7 @@ function toast(msg, dur = 3000) {
 
 function setStatus(ok) {
   document.getElementById('connDot').className = ok ? 'connected' : '';
-  document.getElementById('statusTxt').textContent = ok ? 'Connected' : 'Disconnected';
+  document.getElementById('statusTxt').textContent = ok ? 'Connected · ' + ME : 'Disconnected';
 }
 
 function connect() {
@@ -457,20 +553,22 @@ function connect() {
 
   ws.onopen = () => {
     setStatus(true);
-    toast('Connected to whiteboard session!');
+    toast('✅ Connected to whiteboard session!');
     send({ type: 'hello', id: ME, color: MY_COLOR });
   };
   ws.onclose = () => {
     setStatus(false);
-    toast('Disconnected. Reconnecting in 3s…');
+    toast('⚠️ Disconnected. Reconnecting in 3 s…');
     setTimeout(connect, 3000);
   };
   ws.onerror  = err => console.error('WS error', err);
-  ws.onmessage = msg => { try { applyEvent(JSON.parse(msg.data)); } catch(e) { console.error(e); } };
+  ws.onmessage = msg => {
+    try { applyEvent(JSON.parse(msg.data)); } catch(e) { console.error(e); }
+  };
 }
 
 connect();
-toast('Welcome! D=Draw E=Erase T=Text | Double-tap to follow host', 6000);
+toast('Welcome! D=Draw E=Erase T=Text F=Follow Host X=Clear | Scroll/Pinch to zoom', 7000);
 </script>
 </body>
 </html>
