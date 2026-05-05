@@ -100,8 +100,9 @@ void UBAIBackend::downloadModel()
         return;
     }
 
-    QNetworkRequest req(QUrl(MODEL_URL));
-    req.setRawHeader("User-Agent", "ContraryWhiteboard/1.0");
+    QUrl dlUrl(MODEL_URL);
+    QNetworkRequest req(dlUrl);
+    req.setRawHeader(QByteArray("User-Agent"), QByteArray("ContraryWhiteboard/1.0"));
     req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                      QNetworkRequest::NoLessSafeRedirectPolicy);
     m_dlReply = m_nam->get(req);
@@ -242,7 +243,8 @@ void UBAIBackend::doChat(const QString& userText)
     messages.append(user);
     req["messages"] = messages;
 
-    QNetworkRequest netReq(QUrl(QString("http://127.0.0.1:%1/v1/chat/completions").arg(SERVER_PORT)));
+    QUrl apiUrl(QString("http://127.0.0.1:%1/v1/chat/completions").arg(SERVER_PORT));
+    QNetworkRequest netReq(apiUrl);
     netReq.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     QNetworkReply* reply = m_nam->post(netReq, QJsonDocument(req).toJson(QJsonDocument::Compact));
 
