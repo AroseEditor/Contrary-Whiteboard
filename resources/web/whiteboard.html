@@ -301,8 +301,9 @@ function applyEv(ev) {
       if (followHost) { 
         const cz = ev.zoom || 1;
         scale = cz;
-        panX  = bgC.width/2  - ev.cx * cz;
-        panY  = bgC.height/2 - ev.cy * cz;
+        // Fix: ev.cx/cy are scene coordinates. We must adjust for the current page's scene origin.
+        panX  = bgC.width/2  - (ev.cx - sceneX) * cz;
+        panY  = bgC.height/2 - (ev.cy - sceneY) * cz;
         redraw();
       }
       break;

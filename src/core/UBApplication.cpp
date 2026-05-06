@@ -416,7 +416,7 @@ int UBApplication::exec(const QString& pFileToImport)
     });
 
     // Join Collaboration
-    QAction* joinAction = new QAction(QIcon(":/images/toolbar/plusBlack.png"), tr("Join"), this);
+    QAction* joinAction = new QAction(QIcon(":/images/toolbar/join.png"), tr("Join"), this);
     joinAction->setCheckable(true);
     joinAction->setToolTip(tr("Join a collaboration session using a Room ID"));
     

@@ -17,6 +17,7 @@
 #include <QUrl>
 #include <QMessageBox>
 #include <QDebug>
+#include <QProgressDialog>
 #include <QRegularExpression>
 #include <QTextStream>
 
@@ -177,9 +178,36 @@ bool UBNgrokManager::ensureNgrokExists()
     QNetworkAccessManager mgr;
     QNetworkReply* reply = mgr.get(QNetworkRequest(downloadUrl));
 
+    QProgressDialog progress(tr("Downloading ngrok..."), tr("Cancel"), 0, 0, nullptr);
+    progress.setWindowTitle(tr("Setup"));
+    progress.setWindowModality(Qt::ApplicationModal);
+    progress.setMinimumDuration(0);
+    progress.show();
+
+    QObject::connect(reply, &QNetworkReply::downloadProgress, [&](qint64 bytes, qint64 total) {
+        if (total > 0) {
+            progress.setMaximum(total);
+            progress.setValue(bytes);
+            progress.setLabelText(tr("Downloading ngrok... (%1 MB / %2 MB)")
+                                  .arg(QString::number(bytes / 1024.0 / 1024.0, 'f', 1))
+                                  .arg(QString::number(total / 1024.0 / 1024.0, 'f', 1)));
+        } else {
+            progress.setLabelText(tr("Downloading ngrok... (%1 MB)")
+                                  .arg(QString::number(bytes / 1024.0 / 1024.0, 'f', 1)));
+        }
+    });
+
     QEventLoop loop;
     QObject::connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+    QObject::connect(&progress, &QProgressDialog::canceled, reply, &QNetworkReply::abort);
+    
     loop.exec();
+
+    if (progress.wasCanceled()) {
+        emit error(tr("Download canceled."));
+        reply->deleteLater();
+        return false;
+    }
 
     if (reply->error() != QNetworkReply::NoError) {
         emit error(tr("Failed to download ngrok: %1").arg(reply->errorString()));
